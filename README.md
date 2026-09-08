@@ -9,6 +9,14 @@ Claude Code'u kapak kapalıyken çalıştır, Mac'i pişirmeden.
 
 ## Kurulum
 
+Kullanıcı için:
+
+```sh
+brew install --cask witcharon/tap/lidlezz
+```
+
+ya da [lidlezz-releases](https://github.com/witcharon/lidlezz-releases/releases/latest) sayfasından DMG. Geliştirici için:
+
 ```sh
 ./scripts/install.sh   # derler, /Applications/Lidlezz.app olarak kurar, hook'ları ona bağlar, açar
 ```
@@ -46,5 +54,8 @@ ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
 - 7 gün deneme, sonra tek seferlik lisans. Anahtar `LZ-…` biçiminde, Ed25519 imzalı, çevrimdışı doğrulanır (`Sources/LidlezzCore/License.swift`).
 - Satış: Stripe Payment Link → `site/thanks.html` → Cloudflare Worker (`site/worker`) anahtarı üretir. Kurulum adımları `site/README.md` içinde.
 - İmzalama özel anahtarı login anahtar zincirinde "Lidlezz license signing key" olarak duruyor; `wrangler secret put LICENSE_PRIVATE_KEY` ile Worker'a verilir.
-- Yayın: `scripts/release.sh` notarize edilmiş DMG ve `latest.json` üretir (Developer ID sertifikası ve `notarytool store-credentials lidlezz` gerekir). Sürüm numarası `VERSION` dosyasında.
+- Yayın: `VERSION` dosyasını artır, `scripts/release.sh` çalıştır (Developer ID imzası, notarization, `dist/Lidlezz-<v>.dmg`, `dist/latest.json`, `homebrew/lidlezz.rb`). Sonra:
+  `gh release create v<v> dist/Lidlezz-<v>.dmg dist/latest.json --repo witcharon/lidlezz-releases`,
+  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push, `latest.json`'ı site köküne koy.
+- Depolar: kaynak `witcharon/lidlezz` (private), indirme `witcharon/lidlezz-releases` (public), Homebrew `witcharon/homebrew-tap` (public).
 - Uygulama açılışta ve 6 saatte bir `latest.json`'a bakar; yeni sürüm varsa panelde "Update to x.y.z" bağlantısı çıkar.
