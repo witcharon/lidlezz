@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lidlezz — run Claude Code with the lid closed</title>
+<meta name="description" content="Lidlezz keeps Claude Code working while your MacBook is closed in a bag: throttled, temperature-watched, and asleep before anything gets hot.">
+<style>
+:root{color-scheme:dark;--bg:#1c1c1e;--panel:#2a2a2d;--fg:#f2f2f7;--muted:#8e8e93;--green:#30d158;--orange:#ff9f0a;--blue:#0a84ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+main{max-width:720px;margin:0 auto;padding:72px 24px 96px}
+.mark{width:56px;height:56px;border-radius:14px;display:block;margin-bottom:28px}
+h1{font-size:44px;line-height:1.1;letter-spacing:-.02em;margin:0 0 16px;font-weight:600}
+.lead{font-size:19px;color:var(--muted);margin:0 0 32px;max-width:560px}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:64px}
+.btn{display:inline-block;padding:11px 20px;border-radius:9px;font-size:15px;font-weight:500;text-decoration:none;color:var(--fg);background:rgba(255,255,255,.1)}
+.btn.primary{background:var(--blue)}.btn:hover{filter:brightness(1.12)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:56px}
+.card{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:16px}
+.card b{display:block;font-size:14px;margin-bottom:4px}.card p{margin:0;font-size:13px;color:var(--muted)}
+h2{font-size:22px;letter-spacing:-.01em;margin:48px 0 12px}
+p{font-size:15px}p.muted{color:var(--muted);font-size:13px}
+code{font-family:"SF Mono",Menlo,monospace;font-size:13px;background:rgba(255,255,255,.08);padding:2px 6px;border-radius:5px}
+.price{font-size:36px;font-weight:600;letter-spacing:-.02em}.price small{font-size:14px;color:var(--muted);font-weight:400}
+footer{margin-top:72px;font-size:13px;color:var(--muted)}
+a{color:var(--blue)}
+</style>
+</head>
+<body>
+<main>
+  <img class="mark" src="icon.png" alt="">
+  <h1>Close the lid.<br>Claude Code keeps working.</h1>
+  <p class="lead">Lidlezz keeps your MacBook awake for Claude Code, throttles everything the moment the lid closes, and puts the Mac to sleep before it gets hot or the battery runs low.</p>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/witcharon/lidlezz-releases/releases/latest" id="download">Download for macOS</a>
+    <a class="btn" href="#buy">Buy a license</a>
+  </div>
+
+  <div class="grid">
+    <div class="card"><b>Stays awake, only while needed</b><p>Claude Code's own hooks tell Lidlezz when a session works, waits for a usage limit, or finishes. Then the Mac sleeps normally.</p></div>
+    <div class="card"><b>Throttles in the bag</b><p>Lid closed: Claude Code and its children move to efficiency cores, Low Power Mode turns on, Time Machine and Photos analysis pause.</p></div>
+    <div class="card"><b>Watches the heat</b><p>Reads the SoC die sensors every few seconds. 85° throttles harder, 95° saves the session and sleeps.</p></div>
+    <div class="card"><b>Two settings</b><p>The battery level where lid-closed mode turns itself off, and how long Claude Code may sit idle before the Mac sleeps. Everything else is automatic.</p></div>
+  </div>
+
+  <h2>How it works</h2>
+  <p>A small signed helper toggles <code>pmset disablesleep</code> and Low Power Mode; macOS asks you to allow it once. Lidlezz never touches anything else with root. Temperatures come from IOKit, read-only. When it has to sleep, your session is saved and Lidlezz shows the exact <code>claude --resume</code> command on wake.</p>
+  <p class="muted">Requires an Apple Silicon Mac on macOS 14 or later and Claude Code 2.1.234 or later for usage-limit awareness.</p>
+
+  <h2 id="buy">Price</h2>
+  <p class="price">$19 <small>one-time · 7-day free trial · one license per person, all your Macs</small></p>
+  <p><a class="btn primary" href="STRIPE_PAYMENT_LINK">Buy with Stripe</a></p>
+  <p class="muted">Lost your key? <a href="thanks.html#recover">Get it emailed again</a>.</p>
+
+  <footer>Lidlezz is not affiliated with Anthropic. Claude Code is a trademark of Anthropic, PBC.</footer>
+</main>
+<script>
+fetch("latest.json").then(r=>r.json()).then(j=>{document.getElementById("download").href=j.url}).catch(()=>{});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Lidlezz license</title>
+<style>
+:root{color-scheme:dark}body{margin:0;background:#1c1c1e;color:#f2f2f7;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:560px;margin:0 auto;padding:72px 24px}h1{font-size:28px;letter-spacing:-.01em;margin:0 0 8px}p{color:#8e8e93;font-size:15px}
+.key{font-family:"SF Mono",Menlo,monospace;font-size:13px;background:#151517;border-radius:10px;padding:14px;word-break:break-all;margin:20px 0}
+button,input{font:inherit;font-size:14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);padding:9px 14px;background:rgba(255,255,255,.08);color:#f2f2f7}
+button.primary{background:#0a84ff;border-color:transparent}form{display:flex;gap:8px;margin-top:12px}input{flex:1}
+</style>
+</head>
+<body>
+<main>
+  <section id="license" hidden>
+    <h1>Thanks — here is your license</h1>
+    <p>Open Lidlezz from the menu bar, choose <b>Enter license…</b> and paste this key. We also keep it on file for <span id="email"></span>.</p>
+    <div class="key" id="key"></div>
+    <button class="primary" id="copy">Copy key</button>
+  </section>
+  <section id="recover">
+    <h1>Get your license again</h1>
+    <p>Enter the email you paid with. If we find a purchase, the key is on its way.</p>
+    <form id="form"><input type="email" id="addr" placeholder="you@example.com" required><button class="primary">Send</button></form>
+    <p id="sent" hidden>Sent, check your inbox.</p>
+  </section>
+</main>
+<script>
+const WORKER = "https://lidlezz-license.WORKERS_SUBDOMAIN.workers.dev";
+const id = new URLSearchParams(location.search).get("session_id");
+if (id) fetch(`${WORKER}/license?session_id=${encodeURIComponent(id)}`).then(r => r.json()).then(j => {
+  if (!j.license) return;
+  document.getElementById("key").textContent = j.license;
+  document.getElementById("email").textContent = j.email;
+  document.getElementById("license").hidden = false;
+  document.getElementById("recover").hidden = true;
+});
+document.getElementById("copy").onclick = () => navigator.clipboard.writeText(document.getElementById("key").textContent);
+document.getElementById("form").onsubmit = async e => {
+  e.preventDefault();
+  await fetch(`${WORKER}/license/recover`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: document.getElementById("addr").value }) });
+  document.getElementById("sent").hidden = false;
+};
+</script>
+</body>
+</html>
