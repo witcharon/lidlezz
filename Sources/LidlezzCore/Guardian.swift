@@ -10,6 +10,7 @@ public enum Notice {
     case trialOver
     case licenseRevoked
     case updateAvailable(String)
+    case rejoined(String)
 }
 
 public struct Snapshot {
@@ -22,6 +23,7 @@ public struct Snapshot {
     public var startedAt: Date?
     public var lidMode = false
     public var paused: [String] = []
+    public var online = true
 
     public init() {}
     public var lastRun: EmergencyRecord?
@@ -51,6 +53,9 @@ public final class Guardian {
     private var warnedBattery = false
     private var notedLimitWait = false
     private var idleSince: Date?
+    private let network = Connectivity()
+    private var offlineSince: Date?
+    private var lastRejoin: Date?
 
     public init() { snapshot.lastRun = EmergencyRecord.loadLastRun() }
 
@@ -66,6 +71,7 @@ public final class Guardian {
         manageSleep = Power.hasSleepControl()
         startedAutomatically = automatically
         peak = 0; warnedHot = false; warnedBattery = false; notedLimitWait = false; idleSince = nil
+        offlineSince = nil; lastRejoin = nil
         batteryStart = Power.battery()?.percent ?? 0
         snapshot.guarding = true
         snapshot.startedAt = Date()
@@ -94,6 +100,7 @@ public final class Guardian {
         snapshot.lidClosed = Power.lidClosed() && !Power.externalDisplayConnected()
         snapshot.processes = Processes.claudeTree()
         snapshot.sessions = Sessions.active()
+        snapshot.online = network.isOnline
 
         if !snapshot.claudeDetected { autoStartSuppressed = false }
         if snapshot.guarding { guardTick() } else if autoStart && !autoStartSuppressed && shouldAutoStart {
@@ -130,6 +137,8 @@ public final class Guardian {
             warnedBattery = true; notify(.batteryLow(b.percent))
         }
 
+        rejoinTick()
+
         if snapshot.processes.isEmpty && !working {
             finish("claude exited"); return
         }
@@ -141,6 +150,26 @@ public final class Guardian {
         }
 
         if snapshot.lidClosed { enterLidMode() } else { leaveLidMode() }
+    }
+
+    /// Off the network with a hotspot saved: join it again. macOS gets a grace period to do it
+    /// itself first, and a failed attempt is not repeated for a minute.
+    private func rejoinTick() {
+        let ssid = Settings.rejoinSSID
+        guard !ssid.isEmpty else { return }
+        guard !snapshot.online else {
+            offlineSince = nil
+            // Only ours to report: coming back on the home Wi-Fi by itself is not a rejoin.
+            if lastRejoin != nil { lastRejoin = nil; notify(.rejoined(ssid)) }
+            return
+        }
+        let now = Date()
+        let since = offlineSince ?? now
+        offlineSince = since
+        guard now.timeIntervalSince(since) >= 15 else { return }
+        guard now.timeIntervalSince(lastRejoin ?? .distantPast) >= 60 else { return }
+        lastRejoin = now
+        WiFi.join(ssid)
     }
 
     private func record(_ reason: String) -> EmergencyRecord {

@@ -43,6 +43,7 @@ func guardLoop() {
         case .limitWait: print("\(stamp)  usage limit reached, staying awake until it resets")
         case .trialOver: print("\(stamp)  trial over: buy a license at \(Site.buy.absoluteString) and run: lidlezz license <key>")
         case .updateAvailable(let v): print("\(stamp)  Lidlezz \(v) is out")
+        case .rejoined(let ssid): print("\(stamp)  back online on \(ssid)")
         case .licenseRevoked: print("\(stamp)  this license was revoked; contact \(Site.base.absoluteString)")
         }
         fflush(stdout)

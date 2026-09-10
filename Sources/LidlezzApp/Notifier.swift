@@ -38,6 +38,8 @@ final class Notifier {
             (title, body) = ("Trial over", "Buy a license to keep using lid-closed mode.")
         case .updateAvailable(let v):
             (title, body) = ("Lidlezz \(v) is out", "Run \(Install.brewUpgradeCommand) to update.")
+        case .rejoined(let ssid):
+            (title, body) = ("Back online", "Rejoined \(ssid) so Claude Code can carry on.")
         case .licenseRevoked:
             (title, body) = ("License revoked", "This key is no longer valid. Get in touch if that looks wrong.")
         }

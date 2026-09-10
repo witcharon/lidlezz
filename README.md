@@ -5,6 +5,7 @@ Claude Code'u kapak kapalıyken çalıştır, Mac'i pişirmeden.
 - `claude` çalıştığı sürece Mac'i uyanık tutar; iş bitince her şeyi geri alıp normal uykuya bırakır.
 - Kapak kapanınca (harici ekran yoksa) Claude Code ağacını arka plan QoS'una alır, Low Power Mode açar, Time Machine ve fotoğraf analizini duraklatır. Kapak açılınca geri alır.
 - İki ayar: pil yüzde kaça inince mod kapansın (varsayılan %15) ve otomatik açılan mod kaç dakika boşta kalınca kapansın (3-30, varsayılan 10). SoC 95°'yi geçerse de kapanır; kapak kapalıysa Mac uyutulur, oturum `claude --resume` ile sürer.
+- "Rejoin when offline": mod açıkken Mac tamamen ağsız kalırsa, seçilen kayıtlı Wi-Fi ağına (iPhone kişisel erişim noktası) yeniden bağlanır. Listede kayıtlı ağların telefon hotspot'ları çıkar. 15 sn bekler, sonra dakikada bir dener. Ağ bir kez elle bağlanmış olmalı; parola macOS'ta duruyor. Varsayılan: Never.
 - Claude Code hook'ları oturumun ne zaman çalışıp ne zaman bittiğini bildirir; mod kendiliğinden açılır, iş bitince 2 dakika sonra kapanır.
 
 ## Kurulum

@@ -22,6 +22,12 @@ public enum Settings {
         set { defaults.set(newValue, forKey: "idleMinutes") }
     }
 
+    /// Wi-Fi network to rejoin when the Mac goes offline mid-run. Empty means never.
+    public static var rejoinSSID: String {
+        get { defaults.string(forKey: "rejoinSSID") ?? "" }
+        set { defaults.set(newValue, forKey: "rejoinSSID") }
+    }
+
     /// Last list fetched from the site. Kept across launches so a revoked key stays revoked offline.
     public static var revokedIDs: [String] {
         get { defaults.stringArray(forKey: "revokedIDs") ?? [] }

@@ -8,6 +8,7 @@ final class Model: ObservableObject {
     @Published var snap = Snapshot()
     @Published var batteryFloor = Settings.batteryFloor { didSet { Settings.batteryFloor = batteryFloor } }
     @Published var idleMinutes = Settings.idleMinutes { didSet { Settings.idleMinutes = idleMinutes } }
+    @Published var rejoinSSID = Settings.rejoinSSID { didSet { Settings.rejoinSSID = rejoinSSID } }
     @Published var autoStart = Settings.autoStart {
         didSet { Settings.autoStart = autoStart; queue.async { self.guardian.autoStart = self.autoStart } }
     }
@@ -16,6 +17,8 @@ final class Model: ObservableObject {
     @Published var hooksInstalled = Hooks.isInstalled()
     @Published var notificationsAllowed = false
     @Published var license = License.status
+    /// Saved hotspots the Mac can rejoin without asking for a password.
+    @Published var hotspots: [String] = []
 
     private let guardian = Guardian()
     private let queue = DispatchQueue(label: "lidlezz.guardian")
@@ -43,6 +46,7 @@ final class Model: ObservableObject {
         if !Settings.onboarded { showOnboarding() }
         checkEmergency()
         checkForUpdate()
+        loadNetworks()
         Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in self?.checkForUpdate() }
     }
 
@@ -95,6 +99,17 @@ final class Model: ObservableObject {
     func setGuarding(_ on: Bool) {
         queue.async { on ? self.guardian.turnOn() : self.guardian.turnOff(byUser: true) }
         refresh()
+    }
+
+    /// Re-read them, so a hotspot joined by hand a minute ago is offered here.
+    func loadNetworks() {
+        DispatchQueue.global().async {
+            let found = WiFi.savedHotspots()
+            DispatchQueue.main.async {
+                let picked = self.rejoinSSID
+                self.hotspots = picked.isEmpty || found.contains(picked) ? found : [picked] + found
+            }
+        }
     }
 
     func refresh() {

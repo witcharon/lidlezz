@@ -17,6 +17,7 @@ struct StatusPanel: View {
                 autoStartRow
                 batteryFloorRow
                 idleRow
+                rejoinRow
             }
             footer
         }
@@ -114,6 +115,10 @@ struct StatusPanel: View {
 
     private var idleRow: some View {
         IdleTimeoutRow().padding(.horizontal, 16).padding(.top, 10)
+    }
+
+    private var rejoinRow: some View {
+        RejoinRow().padding(.horizontal, 16).padding(.top, 10)
     }
 
     private var footer: some View {
@@ -232,6 +237,27 @@ struct IdleTimeoutRow: View {
     var body: some View {
         SettingSlider(label: "Turn off when idle for", value: "\(model.idleMinutes) min", range: 3...30,
                       binding: Binding(get: { Double(model.idleMinutes) }, set: { model.idleMinutes = Int($0) }))
+    }
+}
+
+/// Which saved hotspot to fall back on. "Never" is the default: no network is touched
+/// unless the user names one.
+struct RejoinRow: View {
+    @EnvironmentObject var model: Model
+    static let never = ""
+
+    var body: some View {
+        HStack {
+            Text("Rejoin when offline").font(.system(size: 13))
+            Spacer()
+            Picker("", selection: $model.rejoinSSID) {
+                Text("Never").tag(Self.never)
+                Divider()
+                ForEach(model.hotspots, id: \.self) { Text($0).tag($0) }
+            }
+            .labelsHidden().frame(maxWidth: 190)
+        }
+        .onAppear { model.loadNetworks() }
     }
 }
 

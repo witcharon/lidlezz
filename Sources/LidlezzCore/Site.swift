@@ -5,5 +5,6 @@ public enum Site {
     public static let base = URL(string: "https://lidlezz.app")!
     public static let latest = base.appendingPathComponent("latest.json")
     public static let revoked = base.appendingPathComponent("revoked.json")
-    public static let buy = base.appendingPathComponent("#buy")
+    /// Not appendingPathComponent: that escapes the fragment into /%23buy.
+    public static let buy = URL(string: "https://lidlezz.app/#buy")!
 }

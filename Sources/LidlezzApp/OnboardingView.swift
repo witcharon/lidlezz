@@ -47,6 +47,7 @@ struct OnboardingView: View {
                 AutoStartRow()
                 BatteryFloorRow()
                 IdleTimeoutRow()
+                RejoinRow()
             }
             .padding(14)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
