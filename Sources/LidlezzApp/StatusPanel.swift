@@ -8,21 +8,20 @@ struct StatusPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header.padding(EdgeInsets(top: 16, leading: 16, bottom: snap.guarding ? 12 : 4, trailing: 16))
-            if snap.guarding {
-                cards.padding(.horizontal, 16)
-                temperatureBar.padding(.horizontal, 16).padding(.top, 12)
-                keptAlive
-                if !snap.paused.isEmpty { paused }
-                autoStartRow
-                batteryFloorRow
-                idleRow
-                rejoinRow
-            }
+            header.padding(EdgeInsets(top: 16, leading: 16, bottom: 12, trailing: 16))
+            cards.padding(.horizontal, 16)
+            temperatureBar.padding(.horizontal, 16).padding(.top, 12)
+            if !snap.processes.isEmpty { keptAlive }
+            if !snap.paused.isEmpty { paused }
+            autoStartRow
+            manualRow
+            batteryFloorRow
+            idleRow
+            rejoinRow
             footer
         }
         .frame(width: 360)
-        .animation(.easeInOut(duration: 0.2), value: snap.guarding)
+        .animation(.easeInOut(duration: 0.2), value: snap.processes.count)
     }
 
     private var header: some View {
@@ -34,10 +33,16 @@ struct StatusPanel: View {
                 Text(statusLine).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("", isOn: Binding(get: { model.manualHold }, set: { model.setManualHold($0) }))
-                .toggleStyle(.switch).tint(.accentColor).labelsHidden()
-                .help("Keep the Mac awake for \(Int(Model.manualHours)) hours, for tools that cannot report their own activity")
         }
+    }
+
+    /// For tools that cannot report their own activity. Expires by itself, so it cannot be left on.
+    private var manualRow: some View {
+        Toggle(model.manualHold ? "Keeping awake by hand · \(model.manualLeft) left"
+                                : "Keep awake for \(Int(Model.manualHours)) hours",
+               isOn: Binding(get: { model.manualHold }, set: { model.setManualHold($0) }))
+            .toggleStyle(.switch).tint(.accentColor).font(.system(size: 13))
+            .padding(.horizontal, 16).padding(.top, 10)
     }
 
     /// Says what is happening now, and what the switch would do.
@@ -56,7 +61,7 @@ struct StatusPanel: View {
                      valueColor: snap.guarding ? Theme.temperature(soc) : .primary,
                      note: snap.guarding ? "throttle at \(Int(Guardian.warnCelsius))°" : "idle")
             StatCard(label: "Battery", value: "\(battery?.percent ?? 0)%",
-                     note: snap.guarding ? "off at \(model.batteryFloor)%" : (battery?.onAC == true ? "on AC" : "on battery"))
+                     note: snap.guarding ? "sleeps at \(model.batteryFloor)%" : (battery?.onAC == true ? "on AC" : "on battery"))
             StatCard(label: "Power", value: battery?.onAC == true ? "AC" : String(format: "%.1f", battery?.watts ?? 0),
                      unit: battery?.onAC == true ? "" : " W", note: snap.lidMode ? "E-cores only" : "normal")
         }
@@ -225,7 +230,7 @@ struct AutoStartRow: View {
     @EnvironmentObject var model: Model
 
     var body: some View {
-        Toggle("Start automatically when a coding agent runs", isOn: $model.autoStart)
+        Toggle("Stay awake while a coding agent works", isOn: $model.autoStart)
             .toggleStyle(.switch).tint(.accentColor).font(.system(size: 13))
     }
 }
@@ -234,7 +239,7 @@ struct BatteryFloorRow: View {
     @EnvironmentObject var model: Model
 
     var body: some View {
-        SettingSlider(label: "Turn off at", value: "\(model.batteryFloor)% battery", range: 5...80,
+        SettingSlider(label: "Allow sleep at", value: "\(model.batteryFloor)% battery", range: 5...80,
                       binding: Binding(get: { Double(model.batteryFloor) }, set: { model.batteryFloor = Int($0) }))
     }
 }
@@ -243,7 +248,7 @@ struct IdleTimeoutRow: View {
     @EnvironmentObject var model: Model
 
     var body: some View {
-        SettingSlider(label: "Turn off when idle for", value: "\(model.idleMinutes) min", range: 3...30,
+        SettingSlider(label: "Allow sleep after", value: "\(model.idleMinutes) min idle", range: 3...30,
                       binding: Binding(get: { Double(model.idleMinutes) }, set: { model.idleMinutes = Int($0) }))
     }
 }
