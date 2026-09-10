@@ -30,7 +30,11 @@ public enum Thermal {
     }
 
     /// Hottest CPU/GPU die sensor.
+    /// Hottest die sensor. M2 and later expose "PMU tdie…"; M1 exposes "pACC/eACC MTR Temp Sensor…".
     public static func socCelsius() -> Double? {
-        sensors().filter { $0.name.contains("tdie") }.map(\.celsius).max()
+        let all = sensors()
+        let die = all.filter { $0.name.contains("tdie") }
+        let cores = all.filter { $0.name.contains("ACC MTR Temp Sensor") }
+        return (die.isEmpty ? cores : die).map(\.celsius).max()
     }
 }
