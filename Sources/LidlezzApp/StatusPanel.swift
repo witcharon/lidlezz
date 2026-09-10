@@ -119,9 +119,8 @@ struct StatusPanel: View {
     private var footer: some View {
         HStack(spacing: 14) {
             Button("Set up…") { model.showOnboarding() }
-            if case .licensed = model.license {} else {
-                Button(model.licenseLine + " · Enter license…") { model.showLicense() }
-            }
+            // The buyer's email stays visible: a shared key carries the sharer's address.
+            Button(model.licenseLine) { model.showLicense() }
             if let u = model.update { Link("Update to \(u.version)", destination: u.url).foregroundStyle(Color.accentColor) }
             Spacer()
             Button("Quit Lidlezz") { model.quit() }

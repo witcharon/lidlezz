@@ -12,7 +12,7 @@ struct LicenseView: View {
             HStack(spacing: 12) {
                 IconTile(size: 40)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Enter your license").font(.system(size: 15, weight: .semibold))
+                    Text(model.isLicensed ? "Your license" : "Enter your license").font(.system(size: 15, weight: .semibold))
                     Text(model.licenseLine).font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }

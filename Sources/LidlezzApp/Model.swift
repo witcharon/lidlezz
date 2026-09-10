@@ -43,11 +43,13 @@ final class Model: ObservableObject {
 
     // MARK: license and updates
 
+    var isLicensed: Bool { if case .licensed = license { return true }; return false }
+
     var licenseLine: String {
         switch license {
         case .licensed(let l): return "Licensed to \(l.email)"
-        case .trial(let d): return "Trial · \(d) day\(d == 1 ? "" : "s") left"
-        case .expired: return "Trial over"
+        case .trial(let d): return "Trial · \(d) day\(d == 1 ? "" : "s") left · Enter license…"
+        case .expired: return "Trial over · Enter license…"
         }
     }
 
