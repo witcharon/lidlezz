@@ -52,10 +52,11 @@ ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
 ## Lisans ve yayın
 
 - 7 gün deneme, sonra tek seferlik lisans. Anahtar `LZ-…` biçiminde, Ed25519 imzalı, çevrimdışı doğrulanır (`Sources/LidlezzCore/License.swift`).
-- Satış: Stripe Payment Link → `site/thanks.html` → Cloudflare Worker (`site/worker`) anahtarı üretir. Kurulum adımları `site/README.md` içinde.
+- Satış: Stripe Payment Link → lidlezz-web (`witcharon/lidlezz-web`, Next.js, Dokploy) `/thanks` sayfası → aynı projedeki `/api/license` anahtarı üretir. Şartname: lidlezz-web/LICENSE-API.md.
+- `scripts/keygen.mjs` imza çiftini üretir (bir kez, yapıldı), `scripts/sign.mjs` test anahtarı üretir.
 - İmzalama özel anahtarı login anahtar zincirinde "Lidlezz license signing key" olarak duruyor; `wrangler secret put LICENSE_PRIVATE_KEY` ile Worker'a verilir.
 - Yayın: `VERSION` dosyasını artır, `scripts/release.sh` çalıştır (Developer ID imzası, notarization, `dist/Lidlezz-<v>.dmg`, `dist/latest.json`, `homebrew/lidlezz.rb`). Sonra:
   `gh release create v<v> dist/Lidlezz-<v>.dmg dist/latest.json --repo witcharon/lidlezz-releases`,
-  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push, `latest.json`'ı site köküne koy.
+  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push, `dist/latest.json`'ı `lidlezz-web/public/latest.json` üzerine kopyalayıp deploy et.
 - Depolar: kaynak `witcharon/lidlezz` (private), indirme `witcharon/lidlezz-releases` (public), Homebrew `witcharon/homebrew-tap` (public).
 - Uygulama açılışta ve 6 saatte bir `latest.json`'a bakar; yeni sürüm varsa panelde "Update to x.y.z" bağlantısı çıkar.

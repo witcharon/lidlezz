@@ -28,4 +28,4 @@ cat > dist/latest.json <<JSON
 JSON
 sed -e "s|__VERSION__|$V|" -e "s|__SHA256__|$SHA|" -e "s|__URL__|$URL|" -e "s|__HOMEPAGE__|$HOMEPAGE|" \
   homebrew/lidlezz.rb.template > homebrew/lidlezz.rb
-echo "release ready: $DMG, dist/latest.json (site root), homebrew/lidlezz.rb (your tap)"
+echo "release ready: $DMG, dist/latest.json (copy to lidlezz-web/public/), homebrew/lidlezz.rb (your tap)"

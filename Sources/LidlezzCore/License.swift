@@ -3,7 +3,7 @@ import Foundation
 
 /// Offline license check: `LZ-<base64url payload>.<base64url Ed25519 signature>`, signed by the site's worker.
 public struct License {
-    /// Public half of the key pair made with site/worker/keygen.mjs. Replace after generating your own.
+    /// Public half of the key pair made with scripts/keygen.mjs. The site signs with the private half.
     public static let publicKeyBase64 = "yaALSPfG1KogRHyxwhtFAj42Go0Ui0AWd8QdzMMJpNc="
     public static let trialDays = 7
 
