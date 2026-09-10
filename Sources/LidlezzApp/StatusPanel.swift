@@ -121,7 +121,12 @@ struct StatusPanel: View {
             Button("Set up…") { model.showOnboarding() }
             // The buyer's email stays visible: a shared key carries the sharer's address.
             Button(model.licenseLine) { model.showLicense() }
-            if let u = model.update { Link("Update to \(u.version)", destination: u.url).foregroundStyle(Color.accentColor) }
+            if model.canSelfUpdate {
+                Button("Check for updates…") { model.checkForUpdateNow() }
+            } else if let u = model.updateAvailable {
+                Button("Lidlezz \(u) is out · copy brew command") { model.copyBrewCommand() }
+                    .foregroundStyle(Color.accentColor)
+            }
             Spacer()
             Button("Quit Lidlezz") { model.quit() }
         }

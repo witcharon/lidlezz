@@ -58,6 +58,10 @@ ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
 - İmzalama özel anahtarı login anahtar zincirinde "Lidlezz license signing key" olarak duruyor; `wrangler secret put LICENSE_PRIVATE_KEY` ile Worker'a verilir.
 - Yayın: `VERSION` dosyasını artır, `scripts/release.sh` çalıştır (Developer ID imzası, notarization, `dist/Lidlezz-<v>.dmg`, `dist/latest.json`, `homebrew/lidlezz.rb`). Sonra:
   `gh release create v<v> dist/Lidlezz-<v>.dmg dist/latest.json --repo witcharon/lidlezz-releases`,
-  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push, `dist/latest.json`'ı `lidlezz-web/public/latest.json` üzerine kopyalayıp deploy et.
+  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push;
+  `dist/appcast.xml` ve `dist/latest.json` dosyalarını `lidlezz-web/public/` altına kopyalayıp deploy et.
 - Depolar: kaynak `witcharon/lidlezz` (private), indirme `witcharon/lidlezz-releases` (public), Homebrew `witcharon/homebrew-tap` (public).
-- Uygulama açılışta ve 6 saatte bir `latest.json`'a bakar; yeni sürüm varsa panelde "Update to x.y.z" bağlantısı çıkar.
+- Güncelleme iki yoldan gider, çünkü doğru yol kurulumun kaynağına bağlı:
+  - **DMG ile kurulmuşsa** Sparkle devrede. `appcast.xml`'i kendi takvimiyle kontrol eder, indirir, kurar, uygulamayı yeniden başlatır. Panelde "Check for updates…" düğmesi var.
+  - **Homebrew ile kurulmuşsa** (`Caskroom` kaydına bakılır) Sparkle hiç başlatılmaz, çünkü uygulamayı brew yönetiyor. Bunun yerine `latest.json` kontrol edilir, sürüm başına bir kez bildirim atılır ve panelde `brew upgrade --cask lidlezz` komutunu kopyalayan bir düğme çıkar.
+- Sparkle imza anahtarı anahtar zincirinde ("Private key for signing Sparkle updates"); açık yarısı `Info.plist` içinde `SUPublicEDKey` olarak gömülü. `generate_appcast` yalnızca DMG içindeki uygulamada bu anahtar varsa imzalar.

@@ -9,6 +9,7 @@ public enum Notice {
     case limitWait
     case trialOver
     case licenseRevoked
+    case updateAvailable(String)
 }
 
 public struct Snapshot {

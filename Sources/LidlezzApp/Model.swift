@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import LidlezzCore
 
@@ -15,7 +16,6 @@ final class Model: ObservableObject {
     @Published var hooksInstalled = Hooks.isInstalled()
     @Published var notificationsAllowed = false
     @Published var license = License.status
-    @Published var update: (version: String, url: URL)?
 
     private let guardian = Guardian()
     private let queue = DispatchQueue(label: "lidlezz.guardian")
@@ -23,7 +23,12 @@ final class Model: ObservableObject {
     private let onboarding = PanelWindow()
     private let report = PanelWindow()
     private let licenseWindow = PanelWindow()
-    private let updater = Updater()
+    private lazy var updater: Updater = {
+        let u = Updater(notifier: notifier)
+        u.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &bag)
+        return u
+    }()
+    private var bag = Set<AnyCancellable>()
 
     init() {
         guardian.autoStart = autoStart
@@ -66,8 +71,19 @@ final class Model: ObservableObject {
         return true
     }
 
+    var canSelfUpdate: Bool { updater.canSelfUpdate }
+
+    var updateAvailable: String? { updater.available?.version }
+
+    func checkForUpdateNow() { updater.checkNow() }
+
+    func copyBrewCommand() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(Install.brewUpgradeCommand, forType: .string)
+    }
+
     private func checkForUpdate() {
-        updater.check { [weak self] in self?.update = self?.updater.available }
+        updater.check()
         Revocation.refresh { [weak self] in self?.license = License.status }
     }
 

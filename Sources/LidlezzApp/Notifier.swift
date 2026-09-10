@@ -36,6 +36,8 @@ final class Notifier {
             (title, body) = ("Usage limit reached", "Keeping the Mac awake so Claude Code can continue when the limit resets.")
         case .trialOver:
             (title, body) = ("Trial over", "Buy a license to keep using lid-closed mode.")
+        case .updateAvailable(let v):
+            (title, body) = ("Lidlezz \(v) is out", "Run \(Install.brewUpgradeCommand) to update.")
         case .licenseRevoked:
             (title, body) = ("License revoked", "This key is no longer valid. Get in touch if that looks wrong.")
         }
