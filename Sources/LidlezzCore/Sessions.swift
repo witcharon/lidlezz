@@ -20,6 +20,8 @@ public struct Session: Codable, Identifiable {
     public var shortID: String { String(id.suffix(6)) }
     public var project: String { (cwd as NSString).abbreviatingWithTildeInPath }
     public var agentName: String { Agents.agent(agent ?? "claude")?.name ?? "Agent" }
+    /// Never empty: agents that report no working directory still need a name in the list.
+    public var label: String { project.isEmpty ? agentName : project }
 }
 
 public enum Sessions {
@@ -128,15 +130,17 @@ public enum Sessions {
         }
     }
 
-    /// Agents whose hooks cannot say when a turn begins get one session per running process, born busy.
+    /// Agents whose hooks cannot say when a turn begins get one session per running process, and the
+    /// process itself supplies the missing signal: while a turn runs the agent spawns child processes
+    /// for the tools it calls, and at its prompt it has none. The end of a turn still comes from the
+    /// hook, which is the half Codex does report.
     public static func observe(processes: [ProcessEntry]) {
-        let unknownStart = Agents.all.filter { $0.startsUnknown }
-        for agent in unknownStart {
-            let live = processes.filter { agent.processNames.contains($0.name) }
-            for p in live {
-                let id = "\(agent.id):\(p.pid)"
-                guard load(id) == nil else { continue }
-                update(id, agent: agent.id, cwd: nil) { $0.working = true }
+        for agent in Agents.all where agent.startsUnknown {
+            for p in processes where agent.processNames.contains(p.name) {
+                let runningTools = processes.contains { $0.ppid == p.pid }
+                update("\(agent.id):\(p.pid)", agent: agent.id, cwd: nil) { s in
+                    if runningTools { s.working = true }
+                }
             }
         }
     }

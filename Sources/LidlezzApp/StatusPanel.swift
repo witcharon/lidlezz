@@ -29,15 +29,23 @@ struct StatusPanel: View {
         HStack(spacing: 10) {
             IconTile()
             VStack(alignment: .leading, spacing: 1) {
-                Text("Lid-closed mode").font(.system(size: 14, weight: .semibold))
-                Text(snap.guarding ? "Guarding for \(model.runningFor)"
-                     : snap.lastRun.map { "Off · Last run \($0.summary)" } ?? "Off · Mac sleeps normally")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(snap.guarding ? "Staying awake" : "Mac sleeps normally")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(statusLine).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("", isOn: Binding(get: { snap.guarding }, set: { model.setGuarding($0) }))
+            Toggle("", isOn: Binding(get: { model.manualHold }, set: { model.setManualHold($0) }))
                 .toggleStyle(.switch).tint(.accentColor).labelsHidden()
+                .help("Keep the Mac awake for \(Int(Model.manualHours)) hours, for tools that cannot report their own activity")
         }
+    }
+
+    /// Says what is happening now, and what the switch would do.
+    private var statusLine: String {
+        if model.manualHold { return "By hand · \(model.manualLeft) left" }
+        if snap.guarding { return "\(snap.holdReason) · \(model.runningFor)" }
+        if let run = snap.lastRun { return "\(snap.holdReason) · last run \(run.summary)" }
+        return snap.holdReason
     }
 
     private var cards: some View {

@@ -20,10 +20,10 @@ lidlezz — keep Claude Code running with the lid closed, without cooking the Ma
 func line(_ s: Snapshot) -> String {
     let t = s.soc.map { String(format: "%.0f°", $0) } ?? "n/a"
     let b = s.battery.map { "\($0.percent)%\($0.onAC ? " AC" : String(format: " %.1fW", $0.watts))" } ?? "n/a"
-    let sessions = s.sessions.map { "\($0.project)\($0.working ? " working" : $0.waiting ? " waiting for limit" : " idle")" }.joined(separator: ", ")
+    let sessions = s.sessions.map { "\($0.label)\($0.working ? " working" : $0.waiting ? " waiting for limit" : " idle")" }.joined(separator: ", ")
     return "soc \(t)  bat \(b)  lid \(s.lidClosed ? "closed" : "open")  agents \(s.processes.count) procs" +
         (sessions.isEmpty ? "" : "  [\(sessions)]") + (s.lidMode ? "  LID MODE" : s.guarding ? "  guarding" : "") +
-        (s.guarding ? "" : s.lastRun.map { "\n  last run: \($0.summary) (\($0.reason))" } ?? "")
+        (s.guarding ? "  \(s.holdReason)" : s.lastRun.map { "\n  last run: \($0.summary) (\($0.reason))" } ?? "")
 }
 
 func executablePath() -> String {
@@ -35,10 +35,8 @@ func guardLoop() {
     guardian.notify = { notice in
         let stamp = ISO8601DateFormatter().string(from: Date())
         switch notice {
-        case .modeOn: print("\(stamp)  lid-closed mode on" + (Power.hasSleepControl() ? "" : " (helper not ready: lid will still sleep the Mac)"))
         case .warm(let t): print("\(stamp)  ⚠︎ running warm \(Int(t))°")
         case .batteryLow(let p): print("\(stamp)  battery \(p)%, mode turns off at \(Settings.batteryFloor)%")
-        case .finished(let why): print("\(stamp)  done: \(why)")
         case .emergency(let why): print("\(stamp)  EMERGENCY: \(why)")
         case .limitWait: print("\(stamp)  usage limit reached, staying awake until it resets")
         case .trialOver: print("\(stamp)  trial over: buy a license at \(Site.buy.absoluteString) and run: lidlezz license <key>")
@@ -48,12 +46,14 @@ func guardLoop() {
         }
         fflush(stdout)
     }
-    signal(SIGINT) { _ in Guardian.terminal?.turnOff(); exit(0) }
-    signal(SIGTERM) { _ in Guardian.terminal?.turnOff(); exit(0) }
+    signal(SIGINT) { _ in Guardian.terminal?.releaseManual(); _ = Guardian.terminal?.tick(); exit(0) }
+    signal(SIGTERM) { _ in Guardian.terminal?.releaseManual(); _ = Guardian.terminal?.tick(); exit(0) }
     Guardian.terminal = guardian
     guardian.autoStart = Settings.autoStart
-    guardian.turnOn()
-    while guardian.snapshot.guarding {
+    // In the terminal the command itself is the request: hold until Ctrl-C.
+    guardian.holdManually(for: .greatestFiniteMagnitude)
+    if !Power.hasSleepControl() { print("helper not ready: the lid will still sleep the Mac") }
+    while true {
         print(line(guardian.tick())); fflush(stdout)
         Thread.sleep(forTimeInterval: 5)
     }

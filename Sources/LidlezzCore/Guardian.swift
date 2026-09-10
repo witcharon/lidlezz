@@ -1,10 +1,8 @@
 import Foundation
 
 public enum Notice {
-    case modeOn
     case warm(Double)
     case batteryLow(Int)
-    case finished(String)
     case emergency(String)
     case limitWait
     case trialOver
@@ -19,8 +17,13 @@ public struct Snapshot {
     public var lidClosed = false
     public var processes: [ProcessEntry] = []
     public var sessions: [Session] = []
+    /// Sleep is being held off right now.
     public var guarding = false
     public var startedAt: Date?
+    /// Set while the user asked for the Mac to stay awake regardless of what the agents report.
+    public var manualUntil: Date?
+    /// Why sleep is held off, for the panel's status line.
+    public var holdReason = ""
     public var lidMode = false
     public var paused: [String] = []
     public var online = true
@@ -28,10 +31,15 @@ public struct Snapshot {
     public init() {}
     public var lastRun: EmergencyRecord?
     public var claudeDetected: Bool { !processes.isEmpty || sessions.contains(where: \.busy) }
+    public var busyAgents: [String] {
+        Array(Set(sessions.filter(\.busy).map(\.agentName))).sorted()
+    }
 }
 
-/// Lid-closed mode. Holds the Mac awake while Claude Code works, throttles everything once the
-/// lid closes, and gives up before heat or battery become a problem.
+/// Sleep control. There is no mode to switch on: every tick asks one question — should the Mac be
+/// allowed to sleep right now — and holds or releases accordingly. An agent that is working (or a
+/// manual override) holds sleep off; heat, a flat battery or simple inactivity let it go again.
+/// Once the lid closes everything gets throttled, and the guards can force sleep outright.
 public final class Guardian {
     public static let warnCelsius = 85.0
     public static let sleepCelsius = 95.0
@@ -42,60 +50,31 @@ public final class Guardian {
     public private(set) var snapshot = Snapshot()
 
     private var manageSleep = false
-    private var startedAutomatically = false
-    /// Set when the user turns the mode off while Claude Code is still running, so auto-start
-    /// does not flip it straight back on. Cleared once Claude Code is gone.
-    private var autoStartSuppressed = false
+    /// Last moment an agent reported work. Sleep is held for `idleMinutes` past it, so the Mac does
+    /// not drop out from under someone who is about to send the next prompt.
+    private var lastBusy: Date?
     private var throttled = Set<Int32>()
     private var peak = 0.0
     private var batteryStart = 0
     private var warnedHot = false
     private var warnedBattery = false
     private var notedLimitWait = false
-    private var idleSince: Date?
-    /// Whether a tool that exits when it finishes has run during this session. Without one — a desktop
-    /// app like Claude for Mac, switched on by hand — "no agent process" must not end the mode.
-    private var sawExitingAgent = false
     private let network = Connectivity()
     private var offlineSince: Date?
     private var lastRejoin: Date?
 
     public init() { snapshot.lastRun = EmergencyRecord.loadLastRun() }
 
-    public func turnOn(automatically: Bool = false) {
-        guard !snapshot.guarding else { return }
+    /// Keep the Mac awake no matter what the agents report — for tools with no hook API.
+    public func holdManually(for seconds: TimeInterval) {
         guard License.isActive else {
-            if !automatically {
-                if case .revoked = License.status { notify(.licenseRevoked) } else { notify(.trialOver) }
-            }
-            autoStartSuppressed = true
+            if case .revoked = License.status { notify(.licenseRevoked) } else { notify(.trialOver) }
             return
         }
-        manageSleep = Power.hasSleepControl()
-        startedAutomatically = automatically
-        peak = 0; warnedHot = false; warnedBattery = false; notedLimitWait = false; idleSince = nil
-        sawExitingAgent = false
-        offlineSince = nil; lastRejoin = nil
-        batteryStart = Power.battery()?.percent ?? 0
-        snapshot.guarding = true
-        snapshot.startedAt = Date()
-        Power.holdAwake()
-        if manageSleep { Power.setSleepDisabled(true) }
-        notify(.modeOn)
+        snapshot.manualUntil = Date().addingTimeInterval(seconds)
     }
 
-    public func turnOff(byUser: Bool = false, reason: String = "turned off") {
-        guard snapshot.guarding else { return }
-        if byUser { autoStartSuppressed = true }
-        let record = record(reason)
-        record.saveAsLastRun()
-        snapshot.lastRun = record
-        leaveLidMode()
-        if manageSleep { Power.setSleepDisabled(false) }
-        Power.releaseAwake()
-        snapshot.guarding = false
-        snapshot.startedAt = nil
-    }
+    public func releaseManual() { snapshot.manualUntil = nil }
 
     @discardableResult
     public func tick() -> Snapshot {
@@ -107,55 +86,91 @@ public final class Guardian {
         snapshot.sessions = Sessions.active()
         snapshot.online = network.isOnline
 
-        if !snapshot.claudeDetected { autoStartSuppressed = false }
-        if snapshot.guarding { guardTick() } else if autoStart && !autoStartSuppressed && shouldAutoStart {
-            turnOn(automatically: true)
+        if let until = snapshot.manualUntil, until <= Date() { snapshot.manualUntil = nil }
+        if snapshot.sessions.contains(where: \.busy) { lastBusy = Date() }
+
+        let wanted = shouldHold()
+        if wanted && !snapshot.guarding { startHold() }
+        if !wanted && snapshot.guarding {
+            let danger = snapshot.holdReason.hasPrefix("Battery") || snapshot.holdReason.hasPrefix("SoC")
+            let lidWasClosed = snapshot.lidClosed
+            stopHold(reason: snapshot.holdReason)
+            if danger && lidWasClosed { forceSleep(snapshot.holdReason) }
         }
+        if snapshot.guarding { holdTick() }
         return snapshot
     }
 
-    /// Only a session the hooks report as busy starts the mode; an idle `claude` at its prompt does not.
-    /// Never below the battery floor, otherwise the floor turns it off and this turns it back on.
-    private var shouldAutoStart: Bool {
-        guard snapshot.sessions.contains(where: \.busy) else { return false }
-        if let b = snapshot.battery, !b.charging, b.percent <= Settings.batteryFloor { return false }
-        return true
+    /// The whole policy, in one place.
+    private func shouldHold() -> Bool {
+        guard License.isActive else { snapshot.holdReason = "no licence"; return false }
+
+        if let b = snapshot.battery, !b.charging, b.percent <= Settings.batteryFloor {
+            snapshot.holdReason = "Battery reached \(b.percent)%"
+            return false
+        }
+        if (snapshot.soc ?? 0) >= Self.sleepCelsius {
+            snapshot.holdReason = "SoC reached \(Int(snapshot.soc ?? 0))°"
+            return false
+        }
+        if let until = snapshot.manualUntil, until > Date() {
+            snapshot.holdReason = "kept awake by hand"
+            return true
+        }
+        guard autoStart else { snapshot.holdReason = "automatic hold is off"; return false }
+
+        let busy = snapshot.busyAgents
+        if !busy.isEmpty {
+            snapshot.holdReason = busy.joined(separator: ", ") + " working"
+            return true
+        }
+        // Nothing is working now: keep the Mac up a little longer in case the next prompt is coming.
+        if let last = lastBusy, Date().timeIntervalSince(last) < Double(Settings.idleMinutes) * 60 {
+            let left = Double(Settings.idleMinutes) * 60 - Date().timeIntervalSince(last)
+            snapshot.holdReason = "idle, \(Int(left / 60) + 1) min left"
+            return true
+        }
+        snapshot.holdReason = snapshot.claudeDetected ? "no agent is working" : "no agent running"
+        return false
     }
 
-    private func guardTick() {
+    private func startHold() {
+        manageSleep = Power.hasSleepControl()
+        peak = 0; warnedHot = false; warnedBattery = false; notedLimitWait = false
+        offlineSince = nil; lastRejoin = nil
+        batteryStart = snapshot.battery?.percent ?? 0
+        snapshot.guarding = true
+        snapshot.startedAt = Date()
+        Power.holdAwake()
+        if manageSleep { Power.setSleepDisabled(true) }
+    }
+
+    private func stopHold(reason: String) {
+        let record = record(reason)
+        record.saveAsLastRun()
+        snapshot.lastRun = record
+        leaveLidMode()
+        if manageSleep { Power.setSleepDisabled(false) }
+        Power.releaseAwake()
+        snapshot.guarding = false
+        snapshot.startedAt = nil
+    }
+
+    private func holdTick() {
         let soc = snapshot.soc ?? 0
-        let battery = snapshot.battery
-        let working = snapshot.sessions.contains(where: \.busy)
         peak = max(peak, soc)
 
         let waiting = snapshot.sessions.contains(where: \.waiting)
         if waiting, !notedLimitWait { notedLimitWait = true; notify(.limitWait) }
         if !waiting { notedLimitWait = false }
 
-        if soc >= Self.sleepCelsius { emergency("SoC reached \(Int(soc))°"); return }
-        if let b = battery, !b.charging, b.percent <= Settings.batteryFloor {
-            emergency("Battery reached \(b.percent)%"); return
-        }
         if soc >= Self.warnCelsius, !warnedHot { warnedHot = true; notify(.warm(soc)) }
         if soc < Self.warnCelsius - 5 { warnedHot = false }
-        if let b = battery, !b.charging, b.percent <= Settings.batteryFloor + 5, !warnedBattery {
+        if let b = snapshot.battery, !b.charging, b.percent <= Settings.batteryFloor + 5, !warnedBattery {
             warnedBattery = true; notify(.batteryLow(b.percent))
         }
 
         rejoinTick()
-
-        // Desktop apps stay open all day, so only the tools that exit when done count as "still running".
-        let running = snapshot.processes.contains { Agents.shortLivedNames.contains($0.name) }
-        if running { sawExitingAgent = true }
-        if sawExitingAgent && !running && !working {
-            finish("agent exited"); return
-        }
-        if startedAutomatically && !working {
-            idleSince = idleSince ?? Date()
-            if Date().timeIntervalSince(idleSince!) > Double(Settings.idleMinutes) * 60 { finish("Claude Code is idle"); return }
-        } else {
-            idleSince = nil
-        }
 
         if snapshot.lidClosed { enterLidMode() } else { leaveLidMode() }
     }
@@ -186,18 +201,12 @@ public final class Guardian {
                         sessions: snapshot.sessions)
     }
 
-    private func finish(_ why: String) {
-        turnOff(reason: why)
-        notify(.finished("\(why) · \(snapshot.lastRun?.summary ?? ""). Mac will sleep normally."))
-    }
-
-    private func emergency(_ reason: String) {
+    /// Heat or a flat battery with the lid shut: save the session and put the Mac to sleep for real.
+    private func forceSleep(_ reason: String) {
         record(reason).save()
-        let lidWasClosed = snapshot.lidClosed
-        autoStartSuppressed = true
-        turnOff(reason: reason)
+        snapshot.manualUntil = nil
         notify(.emergency(reason))
-        if lidWasClosed { Power.sleepNow() }
+        Power.sleepNow()
     }
 
     private func enterLidMode() {

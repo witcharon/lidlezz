@@ -4,7 +4,12 @@ Claude Code'u kapak kapalıyken çalıştır, Mac'i pişirmeden.
 
 - `claude` çalıştığı sürece Mac'i uyanık tutar; iş bitince her şeyi geri alıp normal uykuya bırakır.
 - Kapak kapanınca (harici ekran yoksa) Claude Code ağacını arka plan QoS'una alır, Low Power Mode açar, Time Machine ve fotoğraf analizini duraklatır. Kapak açılınca geri alır.
-- İki ayar: pil yüzde kaça inince mod kapansın (varsayılan %15) ve otomatik açılan mod kaç dakika boşta kalınca kapansın (3-30, varsayılan 10). SoC 95°'yi geçerse de kapanır; kapak kapalıysa Mac uyutulur, oturum `claude --resume` ile sürer.
+- Açılıp kapanan bir "mod" yok. Lidlezz her üç saniyede tek bir soruyu cevaplar: Mac şu an uyuyabilir mi?
+  Bağlı ajanlardan biri çalışıyorsa uyku engellenir, kimse çalışmıyorsa serbest bırakılır. Karar kapak
+  kapanınca verilemez (o an `pmset disablesleep` kapalıysa Mac hemen uyur), bu yüzden bayrak ajan
+  çalışırken önden hazır tutulur. Hook'u olmayan araçlar için panelde iki saatlik elle bir anahtar var.
+- İki ayar: pil yüzde kaça inince uyku serbest bırakılsın (varsayılan %15) ve son iş bittikten kaç dakika sonra uyku serbest bırakılsın (3-30, varsayılan 10). O süre bir sonraki
+  istem için tanınan pay: iş biter bitmez uyumaz, konuşmanın ortasında kesilmezsin. SoC 95°'yi geçerse de kapanır; kapak kapalıysa Mac uyutulur, oturum `claude --resume` ile sürer.
 - "Rejoin when offline": mod açıkken Mac tamamen ağsız kalırsa, seçilen kayıtlı Wi-Fi ağına (iPhone kişisel erişim noktası) yeniden bağlanır. Listede kayıtlı ağların telefon hotspot'ları çıkar. 15 sn bekler, sonra dakikada bir dener. Ağ bir kez elle bağlanmış olmalı; parola macOS'ta duruyor. Varsayılan: Never.
 - Claude Code hook'ları oturumun ne zaman çalışıp ne zaman bittiğini bildirir; mod kendiliğinden açılır, iş bitince 2 dakika sonra kapanır.
 
@@ -84,10 +89,10 @@ elle açman gerekir.
 
 Notlar:
 
-- **Codex'in tek olayı var.** `agent-turn-complete` dışında bir şey yok, yani turun başladığını
-  öğrenemiyoruz. Bunun yerine çalışan `codex` süreci başına bir oturum açılır ve tur bitince boşta
-  işaretlenir. Pratikte `codex exec` gibi tek turluk işleri tam kapsar; interaktif oturumda ilk turdan
-  sonraki turlar için modu elle açık bırakman gerekir.
+- **Codex'in tek olayı var**, `agent-turn-complete`. Turun başladığını hook'tan öğrenemiyoruz, ama
+  sürecin kendisi söylüyor: tur çalışırken codex çağırdığı araçlar için alt süreçler açar, kendi
+  isteminde beklerken açmaz. Bu yüzden alt süreç varsa çalışıyor sayılır, hook tur bittiğini
+  bildirince boşta işaretlenir. İnteraktif oturumda sonraki turlar da böylece kapsanır.
 - **Codex'te tek bir notify komutu olabiliyor.** Kullanıcının kendi komutu varsa Lidlezz onu silmez;
   `~/.codex/lidlezz-notify.sh` adında, önce Lidlezz'e haber verip sonra eski komutu çalıştıran bir
   betik kurar. Eski komut betiğin içinde `# lidlezz-previous:` satırında saklanır ve

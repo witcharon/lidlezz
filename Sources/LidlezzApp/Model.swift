@@ -96,8 +96,20 @@ final class Model: ObservableObject {
     var menuTitle: String { snap.soc.map { String(format: "%.0f°", $0) } ?? "–" }
     var runningFor: String { snap.startedAt.map { Guardian.duration(Date().timeIntervalSince($0)) } ?? "" }
 
-    func setGuarding(_ on: Bool) {
-        queue.async { on ? self.guardian.turnOn() : self.guardian.turnOff(byUser: true) }
+    /// The panel's manual override: keep the Mac awake for a while whatever the agents report.
+    static let manualHours = 2.0
+
+    var manualHold: Bool { snap.manualUntil != nil }
+
+    var manualLeft: String {
+        snap.manualUntil.map { Guardian.duration($0.timeIntervalSinceNow) } ?? ""
+    }
+
+    func setManualHold(_ on: Bool) {
+        queue.async {
+            on ? self.guardian.holdManually(for: Self.manualHours * 3600) : self.guardian.releaseManual()
+            _ = self.guardian.tick()
+        }
         refresh()
     }
 
@@ -202,7 +214,11 @@ final class Model: ObservableObject {
     func allowNotifications() { notifier.requestPermission { self.notificationsAllowed = $0 } }
 
     func quit() {
-        queue.sync { guardian.turnOff() }
+        queue.sync {
+            guardian.releaseManual()
+            guardian.autoStart = false
+            _ = guardian.tick()
+        }
         NSApp.terminate(nil)
     }
 }

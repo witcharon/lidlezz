@@ -22,14 +22,10 @@ final class Notifier {
     func post(_ notice: Notice) {
         let (title, body): (String, String)
         switch notice {
-        case .modeOn:
-            (title, body) = ("Lid-closed mode on", "Claude Code will run in the background when you close the lid.")
         case .warm(let t):
             (title, body) = ("Running warm · \(Int(t))°", "Throttling further. Consider taking the Mac out of the bag.")
         case .batteryLow(let p):
             (title, body) = ("Battery at \(p)%", "Lid-closed mode turns off at \(Settings.batteryFloor)%.")
-        case .finished(let why):
-            (title, body) = ("Task finished", why)
         case .emergency(let why):
             (title, body) = ("Lidlezz turned lid-closed mode off", why)
         case .limitWait:
