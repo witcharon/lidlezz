@@ -14,7 +14,7 @@ final class Model: ObservableObject {
     }
     @Published var emergency = EmergencyRecord.load()
     @Published var helper = Helper.State.notInstalled
-    @Published var hooksInstalled = Hooks.isInstalled()
+    @Published var agents: [(agent: Agent, wired: Bool)] = []
     @Published var notificationsAllowed = false
     @Published var license = License.status
     /// Saved hotspots the Mac can rejoin without asking for a password.
@@ -171,7 +171,7 @@ final class Model: ObservableObject {
             let state = Helper.state()
             DispatchQueue.main.async { self.helper = state }
         }
-        hooksInstalled = Hooks.isInstalled()
+        agents = Agents.present().map { ($0, Agents.isWired($0)) }
         notifier.isAllowed { self.notificationsAllowed = $0 }
     }
 
@@ -182,7 +182,22 @@ final class Model: ObservableObject {
         }
     }
 
-    func installHooks() { hooksInstalled = Hooks.install(executable: cliPath) }
+    var hooksInstalled: Bool {
+        let wirable = agents.filter { $0.agent.canReportActivity }
+        return !wirable.isEmpty && wirable.allSatisfy(\.wired)
+    }
+
+    func installHooks() {
+        for entry in agents where entry.agent.canReportActivity && !entry.wired {
+            Agents.wire(entry.agent, executable: cliPath)
+        }
+        checkPermissions()
+    }
+
+    func wire(_ agent: Agent) {
+        Agents.wire(agent, executable: cliPath)
+        checkPermissions()
+    }
 
     func allowNotifications() { notifier.requestPermission { self.notificationsAllowed = $0 } }
 

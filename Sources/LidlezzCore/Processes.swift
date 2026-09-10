@@ -8,7 +8,7 @@ public struct ProcessEntry: Identifiable, Hashable {
     public var id: Int32 { pid }
 }
 
-/// Claude Code sessions and their child processes; background QoS; pausing heavy daemons.
+/// Agent processes and their children; background QoS; pausing heavy daemons.
 public enum Processes {
     private static func snapshot() -> [ProcessEntry] {
         Shell.run("/bin/ps", ["-axo", "pid=,ppid=,args="]).output
@@ -24,14 +24,15 @@ public enum Processes {
             }
     }
 
-    /// Every `claude` process followed by its descendants.
-    public static func claudeTree() -> [ProcessEntry] {
+    /// Every known agent process followed by its descendants.
+    public static func agentTree() -> [ProcessEntry] {
         let all = snapshot()
         var children: [Int32: [ProcessEntry]] = [:]
         for e in all { children[e.ppid, default: []].append(e) }
         var seen = Set<Int32>()
         var result: [ProcessEntry] = []
-        var queue = all.filter { $0.name == "claude" }
+        let names = Agents.throttleNames
+        var queue = all.filter { names.contains($0.name) }
         while !queue.isEmpty {
             let e = queue.removeFirst()
             guard seen.insert(e.pid).inserted else { continue }

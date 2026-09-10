@@ -72,14 +72,26 @@ struct OnboardingView: View {
                 step(done: model.helper == .ready, title: "Sleep control",
                      detail: helperDetail, buttonTitle: model.helper == .needsApproval ? "Open Settings" : "Install",
                      action: model.installHelper)
-                step(done: model.hooksInstalled, title: "Claude Code hooks",
-                     detail: "Claude Code tells Lidlezz when a session starts, works and finishes",
-                     action: model.installHooks)
+                step(done: model.hooksInstalled, title: "Coding agents",
+                     detail: agentsDetail, buttonTitle: "Connect", action: model.installHooks)
                 step(done: model.notificationsAllowed, title: "Notifications",
                      detail: "Temperature warnings and sleep events",
                      action: model.allowNotifications)
             }
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    /// Names the tools found on this Mac, so the step says what it is about to touch.
+    private var agentsDetail: String {
+        let wirable = model.agents.filter { $0.agent.canReportActivity }.map(\.agent.name)
+        let manual = model.agents.filter { !$0.agent.canReportActivity }.map(\.agent.name)
+        if wirable.isEmpty {
+            return manual.isEmpty ? "No coding agents found yet; install one and come back"
+                                  : "\(manual.joined(separator: ", ")) has no hook API, so turn the mode on by hand"
+        }
+        var text = "\(wirable.joined(separator: ", ")) will tell Lidlezz when work starts and finishes"
+        if !manual.isEmpty { text += ". \(manual.joined(separator: ", ")): turn the mode on by hand" }
+        return text
     }
 
     private var helperDetail: String {

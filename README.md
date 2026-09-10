@@ -66,3 +66,32 @@ ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
   - **DMG ile kurulmuşsa** Sparkle devrede. `appcast.xml`'i kendi takvimiyle kontrol eder, indirir, kurar, uygulamayı yeniden başlatır. Panelde "Check for updates…" düğmesi var.
   - **Homebrew ile kurulmuşsa** (`Caskroom` kaydına bakılır) Sparkle hiç başlatılmaz, çünkü uygulamayı brew yönetiyor. Bunun yerine `latest.json` kontrol edilir, sürüm başına bir kez bildirim atılır ve panelde `brew upgrade --cask lidlezz` komutunu kopyalayan bir düğme çıkar.
 - Sparkle imza anahtarı anahtar zincirinde ("Private key for signing Sparkle updates"); açık yarısı `Info.plist` içinde `SUPublicEDKey` olarak gömülü. `generate_appcast` yalnızca DMG içindeki uygulamada bu anahtar varsa imzalar.
+
+## Desteklenen kodlama ajanları
+
+Her araçtan iki şey isteniyor: kapak kapanınca hangi süreçlerin kısılacağı ve mümkünse ne zaman
+gerçekten çalıştığı. İkincisi olmadan da sıcaklık, pil ve kısma korumaları çalışır; sadece modu
+elle açman gerekir.
+
+| Ajan | Bağlantı | Nereye yazılır |
+|---|---|---|
+| Claude Code | Tam. Başlangıç, araç çağrısı, bitiş, kullanım limiti beklemesi | `~/.claude/settings.json` |
+| Cursor | Tam. sessionStart, beforeSubmitPrompt, preToolUse, stop, sessionEnd | `~/.cursor/hooks.json` |
+| Antigravity | Tam. PreToolUse, Stop | `~/.gemini/config/hooks.json` |
+| opencode | Tam. tool.execute.before, session.idle | `~/.config/opencode/plugin(s)/lidlezz.js` |
+| Codex CLI | Kısmi. Yalnızca turun bittiğini bildirir | `~/.codex/config.toml` içindeki `notify` |
+| Claude for Mac (Cowork) | Yok. Modu elle aç | — |
+
+Notlar:
+
+- **Codex'in tek olayı var.** `agent-turn-complete` dışında bir şey yok, yani turun başladığını
+  öğrenemiyoruz. Bunun yerine çalışan `codex` süreci başına bir oturum açılır ve tur bitince boşta
+  işaretlenir. Pratikte `codex exec` gibi tek turluk işleri tam kapsar; interaktif oturumda ilk turdan
+  sonraki turlar için modu elle açık bırakman gerekir.
+- **Codex'te tek bir notify komutu olabiliyor.** Kullanıcının kendi komutu varsa Lidlezz onu silmez;
+  `~/.codex/lidlezz-notify.sh` adında, önce Lidlezz'e haber verip sonra eski komutu çalıştıran bir
+  betik kurar. Eski komut betiğin içinde `# lidlezz-previous:` satırında saklanır ve
+  `lidlezz hooks uninstall codex` ile geri konur.
+- **Masaüstü uygulamaları gün boyu açık durur**, o yüzden varlıkları "çalışıyor" demek değildir.
+  Modun kendiliğinden bitmesi bu araçlarda süreçlerin kaybolmasına değil, boşta kalma süresine bakar.
+- Her yazıcı yalnızca kendi imzasını taşıyan kayıtlara dokunur; kullanıcının kendi hook'ları yerinde kalır.

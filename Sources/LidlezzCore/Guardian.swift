@@ -98,7 +98,8 @@ public final class Guardian {
         snapshot.soc = Thermal.socCelsius()
         snapshot.battery = Power.battery()
         snapshot.lidClosed = Power.lidClosed() && !Power.externalDisplayConnected()
-        snapshot.processes = Processes.claudeTree()
+        snapshot.processes = Processes.agentTree()
+        Sessions.observe(processes: snapshot.processes)
         snapshot.sessions = Sessions.active()
         snapshot.online = network.isOnline
 
@@ -139,8 +140,10 @@ public final class Guardian {
 
         rejoinTick()
 
-        if snapshot.processes.isEmpty && !working {
-            finish("claude exited"); return
+        // Desktop apps stay open all day, so only the tools that exit when done count as "still running".
+        let running = snapshot.processes.contains { Agents.shortLivedNames.contains($0.name) }
+        if !running && !working {
+            finish("agent exited"); return
         }
         if startedAutomatically && !working {
             idleSince = idleSince ?? Date()
