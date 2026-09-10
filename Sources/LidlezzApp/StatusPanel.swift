@@ -217,7 +217,7 @@ struct AutoStartRow: View {
     @EnvironmentObject var model: Model
 
     var body: some View {
-        Toggle("Start automatically when Claude Code runs", isOn: $model.autoStart)
+        Toggle("Start automatically when a coding agent runs", isOn: $model.autoStart)
             .toggleStyle(.switch).tint(.accentColor).font(.system(size: 13))
     }
 }

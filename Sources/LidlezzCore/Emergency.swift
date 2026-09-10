@@ -11,8 +11,11 @@ public struct EmergencyRecord: Codable {
     public var batteryEnd: Int
     public var sessions: [Session]
 
+    /// Only Claude Code can be picked up again from the command line, and its id is stored
+    /// namespaced ("claude:<uuid>"), so the prefix comes off before the command is shown.
     public var resumeCommand: String? {
-        sessions.first.map { "claude --resume \($0.id)" }
+        guard let s = sessions.first(where: { ($0.agent ?? "claude") == "claude" }) else { return nil }
+        return "claude --resume \(s.id.split(separator: ":").last.map(String.init) ?? s.id)"
     }
 
     /// "47m · peak 71° · −12% battery"

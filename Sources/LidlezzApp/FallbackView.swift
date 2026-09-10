@@ -23,7 +23,7 @@ struct FallbackView: View {
                     row("Peak temp", String(format: "%.0f°", r.peakCelsius), color: Theme.orange)
                     row("Ran with lid closed", Guardian.duration(r.endedAt.timeIntervalSince(r.startedAt)))
                     row("Battery used", "\(r.batteryStart)% → \(r.batteryEnd)%")
-                    if let s = r.sessions.first { row("Session", "\(s.project) · \(s.shortID)", mono: true) }
+                    if let s = r.sessions.first { row("Session", "\(s.agentName) · \(s.project)", mono: true) }
                 }
                 .padding(12)
                 .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
