@@ -53,6 +53,9 @@ public final class Guardian {
     private var warnedBattery = false
     private var notedLimitWait = false
     private var idleSince: Date?
+    /// Whether a tool that exits when it finishes has run during this session. Without one — a desktop
+    /// app like Claude for Mac, switched on by hand — "no agent process" must not end the mode.
+    private var sawExitingAgent = false
     private let network = Connectivity()
     private var offlineSince: Date?
     private var lastRejoin: Date?
@@ -71,6 +74,7 @@ public final class Guardian {
         manageSleep = Power.hasSleepControl()
         startedAutomatically = automatically
         peak = 0; warnedHot = false; warnedBattery = false; notedLimitWait = false; idleSince = nil
+        sawExitingAgent = false
         offlineSince = nil; lastRejoin = nil
         batteryStart = Power.battery()?.percent ?? 0
         snapshot.guarding = true
@@ -142,7 +146,8 @@ public final class Guardian {
 
         // Desktop apps stay open all day, so only the tools that exit when done count as "still running".
         let running = snapshot.processes.contains { Agents.shortLivedNames.contains($0.name) }
-        if !running && !working {
+        if running { sawExitingAgent = true }
+        if sawExitingAgent && !running && !working {
             finish("agent exited"); return
         }
         if startedAutomatically && !working {
