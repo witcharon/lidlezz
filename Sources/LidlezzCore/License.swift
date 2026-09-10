@@ -1,7 +1,8 @@
 import CryptoKit
 import Foundation
 
-/// Offline license check: `LZ-<base64url payload>.<base64url Ed25519 signature>`, signed by the site's worker.
+/// Offline license check: `LZ-<base64url payload>.<base64url Ed25519 signature>`, signed by the site.
+/// The signature is the whole check; the network is only ever consulted to learn that a key was revoked.
 public struct License {
     /// Public half of the key pair made with scripts/keygen.mjs. The site signs with the private half.
     public static let publicKeyBase64 = "yaALSPfG1KogRHyxwhtFAj42Go0Ui0AWd8QdzMMJpNc="
@@ -9,6 +10,8 @@ public struct License {
 
     public let email: String
     public let issuedAt: Date
+    /// Opaque per-purchase id. The published revocation list names these, never emails.
+    public let id: String?
 
     public static func parse(_ raw: String) -> License? {
         let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -22,7 +25,7 @@ public struct License {
               let json = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
               let email = json["e"] as? String, let issued = json["t"] as? Double
         else { return nil }
-        return License(email: email, issuedAt: Date(timeIntervalSince1970: issued))
+        return License(email: email, issuedAt: Date(timeIntervalSince1970: issued), id: json["i"] as? String)
     }
 
     // MARK: current state
@@ -31,10 +34,14 @@ public struct License {
         case licensed(License)
         case trial(daysLeft: Int)
         case expired
+        case revoked
     }
 
     public static var status: Status {
-        if let key = Settings.licenseKey, let license = parse(key) { return .licensed(license) }
+        if let key = Settings.licenseKey, let license = parse(key) {
+            if let id = license.id, Settings.revokedIDs.contains(id) { return .revoked }
+            return .licensed(license)
+        }
         let start = Settings.firstLaunch
         let elapsedDays = Int(max(0, Date().timeIntervalSince(start)) / 86400)
         let left = trialDays - elapsedDays
@@ -42,8 +49,10 @@ public struct License {
     }
 
     public static var isActive: Bool {
-        if case .expired = status { return false }
-        return true
+        switch status {
+        case .licensed, .trial: return true
+        case .expired, .revoked: return false
+        }
     }
 }
 

@@ -54,6 +54,7 @@ ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
 - 7 gün deneme, sonra tek seferlik lisans. Anahtar `LZ-…` biçiminde, Ed25519 imzalı, çevrimdışı doğrulanır (`Sources/LidlezzCore/License.swift`).
 - Satış: Stripe Payment Link → lidlezz-web (`witcharon/lidlezz-web`, Next.js, Dokploy) `/thanks` sayfası → aynı projedeki `/api/license` anahtarı üretir. Şartname: lidlezz-web/LICENSE-API.md.
 - `scripts/keygen.mjs` imza çiftini üretir (bir kez, yapıldı), `scripts/sign.mjs` test anahtarı üretir.
+- İptal: anahtarın içinde alıcıya bağlı, geri çevrilemez bir kimlik var. `node scripts/revoke-id.mjs <e-posta>` kimliği verir; onu `lidlezz-web/public/revoked.json` içine ekleyip deploy edersin. Uygulama listeyi güncelleme kontrolüyle birlikte çeker; sunucuya ulaşamazsa son bilinen liste geçerli kalır, kimsenin lisansı kazara düşmez. Yayınlanan dosyada e-posta yok.
 - İmzalama özel anahtarı login anahtar zincirinde "Lidlezz license signing key" olarak duruyor; `wrangler secret put LICENSE_PRIVATE_KEY` ile Worker'a verilir.
 - Yayın: `VERSION` dosyasını artır, `scripts/release.sh` çalıştır (Developer ID imzası, notarization, `dist/Lidlezz-<v>.dmg`, `dist/latest.json`, `homebrew/lidlezz.rb`). Sonra:
   `gh release create v<v> dist/Lidlezz-<v>.dmg dist/latest.json --repo witcharon/lidlezz-releases`,

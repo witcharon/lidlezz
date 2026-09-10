@@ -50,6 +50,7 @@ final class Model: ObservableObject {
         case .licensed(let l): return "Licensed to \(l.email)"
         case .trial(let d): return "Trial · \(d) day\(d == 1 ? "" : "s") left · Enter license…"
         case .expired: return "Trial over · Enter license…"
+        case .revoked: return "License revoked · Enter license…"
         }
     }
 
@@ -67,6 +68,7 @@ final class Model: ObservableObject {
 
     private func checkForUpdate() {
         updater.check { [weak self] in self?.update = self?.updater.available }
+        Revocation.refresh { [weak self] in self?.license = License.status }
     }
 
     // MARK: guarding

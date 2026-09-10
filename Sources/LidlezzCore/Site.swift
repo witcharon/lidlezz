@@ -4,5 +4,6 @@ import Foundation
 public enum Site {
     public static let base = URL(string: "https://lidlezz.app")!
     public static let latest = base.appendingPathComponent("latest.json")
+    public static let revoked = base.appendingPathComponent("revoked.json")
     public static let buy = base.appendingPathComponent("#buy")
 }

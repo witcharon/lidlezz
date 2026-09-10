@@ -42,6 +42,7 @@ func guardLoop() {
         case .emergency(let why): print("\(stamp)  EMERGENCY: \(why)")
         case .limitWait: print("\(stamp)  usage limit reached, staying awake until it resets")
         case .trialOver: print("\(stamp)  trial over: buy a license at \(Site.buy.absoluteString) and run: lidlezz license <key>")
+        case .licenseRevoked: print("\(stamp)  this license was revoked; contact \(Site.base.absoluteString)")
         }
         fflush(stdout)
     }
@@ -93,6 +94,7 @@ case "license":
         case .licensed(let l): print("licensed to \(l.email)")
         case .trial(let d): print("trial, \(d) days left")
         case .expired: print("trial over: \(Site.buy.absoluteString)")
+        case .revoked: print("license revoked: \(Site.base.absoluteString)")
         }
     }
 case "idle":

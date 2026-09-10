@@ -36,6 +36,8 @@ final class Notifier {
             (title, body) = ("Usage limit reached", "Keeping the Mac awake so Claude Code can continue when the limit resets.")
         case .trialOver:
             (title, body) = ("Trial over", "Buy a license to keep using lid-closed mode.")
+        case .licenseRevoked:
+            (title, body) = ("License revoked", "This key is no longer valid. Get in touch if that looks wrong.")
         }
         let kind = String(describing: notice).prefix { $0 != "(" }.description
         if let last = lastPosted[kind], last.body == body, Date().timeIntervalSince(last.at) < repeatInterval { return }

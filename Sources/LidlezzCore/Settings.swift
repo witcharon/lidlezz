@@ -22,6 +22,12 @@ public enum Settings {
         set { defaults.set(newValue, forKey: "idleMinutes") }
     }
 
+    /// Last list fetched from the site. Kept across launches so a revoked key stays revoked offline.
+    public static var revokedIDs: [String] {
+        get { defaults.stringArray(forKey: "revokedIDs") ?? [] }
+        set { defaults.set(newValue, forKey: "revokedIDs") }
+    }
+
     public static var licenseKey: String? {
         get { defaults.string(forKey: "licenseKey") }
         set { defaults.set(newValue, forKey: "licenseKey") }

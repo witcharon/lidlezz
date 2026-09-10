@@ -8,6 +8,7 @@ public enum Notice {
     case emergency(String)
     case limitWait
     case trialOver
+    case licenseRevoked
 }
 
 public struct Snapshot {
@@ -55,7 +56,9 @@ public final class Guardian {
     public func turnOn(automatically: Bool = false) {
         guard !snapshot.guarding else { return }
         guard License.isActive else {
-            if !automatically { notify(.trialOver) }
+            if !automatically {
+                if case .revoked = License.status { notify(.licenseRevoked) } else { notify(.trialOver) }
+            }
             autoStartSuppressed = true
             return
         }
