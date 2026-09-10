@@ -136,12 +136,18 @@ public enum Sessions {
     /// hook, which is the half Codex does report.
     public static func observe(processes: [ProcessEntry]) {
         for agent in Agents.all where agent.startsUnknown {
-            for p in processes where agent.processNames.contains(p.name) {
+            let live = processes.filter { agent.processNames.contains($0.name) }
+            for p in live {
                 let runningTools = processes.contains { $0.ppid == p.pid }
                 update("\(agent.id):\(p.pid)", agent: agent.id, cwd: nil) { s in
                     if runningTools { s.working = true }
                 }
             }
+            // The process is the session. Once it is gone — finished, killed, crashed mid-turn —
+            // so is its claim on the Mac; without this a dead agent would hold sleep off for the
+            // rest of the lease.
+            let alive = Set(live.map { "\(agent.id):\($0.pid)" })
+            for s in all() where s.agent == agent.id && !alive.contains(s.id) { end(s.id) }
         }
     }
 
