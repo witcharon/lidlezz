@@ -50,6 +50,7 @@ func guardLoop() {
     signal(SIGTERM) { _ in Guardian.terminal?.releaseManual(); _ = Guardian.terminal?.tick(); exit(0) }
     Guardian.terminal = guardian
     guardian.autoStart = Settings.autoStart
+    guardian.ownsSleep = true
     // In the terminal the command itself is the request: hold until Ctrl-C.
     guardian.holdManually(for: .greatestFiniteMagnitude)
     if !Power.hasSleepControl() { print("helper not ready: the lid will still sleep the Mac") }

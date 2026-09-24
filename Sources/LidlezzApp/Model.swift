@@ -35,6 +35,7 @@ final class Model: ObservableObject {
 
     init() {
         guardian.autoStart = autoStart
+        guardian.ownsSleep = true
         guardian.notify = { [weak self] notice in
             DispatchQueue.main.async { self?.handle(notice) }
         }

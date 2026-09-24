@@ -47,6 +47,8 @@ public final class Guardian {
     public var notify: (Notice) -> Void = { _ in }
     /// Turn on by itself when Claude Code is working (the app sets this from Settings).
     public var autoStart = false
+    /// Set by the long-running owner (the app, the terminal loop). A one-shot `status` must not touch sleep.
+    public var ownsSleep = false
     public private(set) var snapshot = Snapshot()
 
     private var manageSleep = false
@@ -62,6 +64,7 @@ public final class Guardian {
     private let network = Connectivity()
     private var offlineSince: Date?
     private var lastRejoin: Date?
+    private var lastLidSleep = Date.distantPast
 
     public init() { snapshot.lastRun = EmergencyRecord.loadLastRun() }
 
@@ -97,7 +100,7 @@ public final class Guardian {
             stopHold(reason: snapshot.holdReason)
             if danger && lidWasClosed { forceSleep(snapshot.holdReason) }
         }
-        if snapshot.guarding { holdTick() }
+        if snapshot.guarding { holdTick() } else if ownsSleep { letSleep() }
         return snapshot
     }
 
@@ -156,6 +159,24 @@ public final class Guardian {
         snapshot.startedAt = nil
     }
 
+    /// Not holding: make sure nothing still keeps the Mac up that should not. macOS decides lid sleep
+    /// only at the moment the lid shuts; if we were holding then, nothing re-checks once we let go,
+    /// and a Mac in a bag stays awake until the battery is flat. So a closed lid gets put to sleep here.
+    private func letSleep() {
+        if Power.sleepDisabled() && Power.hasSleepControl() { Power.setSleepDisabled(false) }
+        guard snapshot.lidClosed || onlyClaudeAppKeepsAwake(),
+              Date().timeIntervalSince(lastLidSleep) > 60 else { return }
+        lastLidSleep = Date()
+        Power.sleepNow()
+    }
+
+    /// Lid open: the Claude app holds idle sleep off for as long as it runs, even with nothing to do.
+    /// Once it is the only thing left in the way (the display already off, nothing else playing or
+    /// busy), sleep as macOS would have, unless its sleep timer says never.
+    private func onlyClaudeAppKeepsAwake() -> Bool {
+        Power.idleSleepBlockers() == ["Claude"] && Power.idleSleepMinutes() > 0
+    }
+
     private func holdTick() {
         let soc = snapshot.soc ?? 0
         peak = max(peak, soc)
@@ -206,6 +227,7 @@ public final class Guardian {
         record(reason).save()
         snapshot.manualUntil = nil
         notify(.emergency(reason))
+        lastLidSleep = Date()
         Power.sleepNow()
     }
 

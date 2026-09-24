@@ -40,6 +40,30 @@ public enum Power {
         (registryProperty("IOPMrootDomain", "AppleClamshellState") as? Bool) ?? false
     }
 
+    /// `pmset disablesleep`, whoever set it.
+    public static func sleepDisabled() -> Bool {
+        (registryProperty("IOPMrootDomain", "SleepDisabled") as? Bool) ?? false
+    }
+
+    /// Processes holding an idle Mac or its display awake. While the display is on, powerd is one of them.
+    public static func idleSleepBlockers() -> Set<String> {
+        let types: Set<String> = ["PreventUserIdleSystemSleep", "NoIdleSleepAssertion",
+                                  "PreventUserIdleDisplaySleep", "NoDisplaySleepAssertion"]
+        var byProcess: Unmanaged<CFDictionary>?
+        guard IOPMCopyAssertionsByProcess(&byProcess) == kIOReturnSuccess,
+              let all = byProcess?.takeRetainedValue() as? [AnyHashable: [[String: Any]]] else { return [] }
+        return Set(all.values.joined().compactMap { a in
+            types.contains(a["AssertType"] as? String ?? "") ? a["Process Name"] as? String : nil
+        })
+    }
+
+    /// The idle sleep timer for the current power source, in minutes; 0 means never.
+    public static func idleSleepMinutes() -> Int {
+        let line = Shell.run("/usr/bin/pmset", ["-g"]).output.split(separator: "\n")
+            .first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("sleep ") }
+        return line.flatMap { Int($0.split(separator: " ", omittingEmptySubsequences: true).dropFirst().first ?? "") } ?? 0
+    }
+
     /// Lid closed with a monitor attached is a desk setup, not a bag.
     public static func externalDisplayConnected() -> Bool {
         var ids = [CGDirectDisplayID](repeating: 0, count: 8)
