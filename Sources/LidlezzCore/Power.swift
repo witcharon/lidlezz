@@ -64,8 +64,29 @@ public enum Power {
         return line.flatMap { Int($0.split(separator: " ", omittingEmptySubsequences: true).dropFirst().first ?? "") } ?? 0
     }
 
-    /// Lid closed with a monitor attached is a desk setup, not a bag.
+    /// Lid closed with a monitor attached is a desk setup, not a bag. Asked of the hardware: with the
+    /// lid shut and nothing plugged in, WindowServer puts up a stand-in display that CoreGraphics
+    /// reports as external, which read as a desk and kept a Mac in a bag awake all night. A real
+    /// monitor shows up as an external framebuffer with a display attached.
     public static func externalDisplayConnected() -> Bool {
+        var iterator: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOMobileFramebufferShim"),
+                                           &iterator) == KERN_SUCCESS else { return false }
+        defer { IOObjectRelease(iterator) }
+        var sawFramebuffer = false
+        while case let entry = IOIteratorNext(iterator), entry != 0 {
+            defer { IOObjectRelease(entry) }
+            sawFramebuffer = true
+            let external = IORegistryEntryCreateCFProperty(entry, "external" as CFString, kCFAllocatorDefault, 0)?
+                .takeRetainedValue() as? Bool ?? false
+            let attached = IORegistryEntryCreateCFProperty(entry, "DisplayAttributes" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() != nil
+            if external && attached { return true }
+        }
+        return sawFramebuffer ? false : cgExternalDisplay()
+    }
+
+    /// Intel Macs have no IOMobileFramebufferShim; fall back to what CoreGraphics lists.
+    private static func cgExternalDisplay() -> Bool {
         var ids = [CGDirectDisplayID](repeating: 0, count: 8)
         var count: UInt32 = 0
         CGGetOnlineDisplayList(8, &ids, &count)
