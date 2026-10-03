@@ -9,6 +9,8 @@ public enum Notice {
     case licenseRevoked
     case updateAvailable(String)
     case rejoined(String)
+    /// `pmset disablesleep` is on and the helper that would turn it off is not answering.
+    case sleepStuck
 }
 
 public struct Snapshot {
@@ -65,6 +67,7 @@ public final class Guardian {
     private var offlineSince: Date?
     private var lastRejoin: Date?
     private var lastLidSleep = Date.distantPast
+    private var warnedSleepStuck = false
 
     public init() { snapshot.lastRun = EmergencyRecord.loadLastRun() }
 
@@ -163,11 +166,19 @@ public final class Guardian {
     /// only at the moment the lid shuts; if we were holding then, nothing re-checks once we let go,
     /// and a Mac in a bag stays awake until the battery is flat. So a closed lid gets put to sleep here.
     private func letSleep() {
-        if Power.sleepDisabled() && Power.hasSleepControl() { Power.setSleepDisabled(false) }
+        releaseSleepDisabled()
         guard snapshot.lidClosed || onlyClaudeAppKeepsAwake(),
               Date().timeIntervalSince(lastLidSleep) > 60 else { return }
         lastLidSleep = Date()
         Power.sleepNow()
+    }
+
+    /// A `disablesleep` left on blocks every kind of sleep, `sleepnow` included, and survives a restart.
+    /// Only the helper can turn it off; when the helper is gone, say so instead of failing quietly.
+    private func releaseSleepDisabled() {
+        guard Power.sleepDisabled() else { warnedSleepStuck = false; return }
+        if Power.hasSleepControl() { Power.setSleepDisabled(false); return }
+        if !warnedSleepStuck { warnedSleepStuck = true; notify(.sleepStuck) }
     }
 
     /// Lid open: the Claude app holds idle sleep off for as long as it runs, even with nothing to do.

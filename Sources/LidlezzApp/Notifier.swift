@@ -38,6 +38,9 @@ final class Notifier {
             (title, body) = ("Back online", "Rejoined \(ssid) so Claude Code can carry on.")
         case .licenseRevoked:
             (title, body) = ("License revoked", "This key is no longer valid. Get in touch if that looks wrong.")
+        case .sleepStuck:
+            (title, body) = ("Your Mac can't sleep", "Sleep is switched off and the helper isn't answering. "
+                             + "Open Lidlezz › Set up… › Repair, or run: \(Helper.releaseSleepCommand)")
         }
         let kind = String(describing: notice).prefix { $0 != "(" }.description
         if let last = lastPosted[kind], last.body == body, Date().timeIntervalSince(last.at) < repeatInterval { return }

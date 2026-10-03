@@ -43,6 +43,7 @@ func guardLoop() {
         case .updateAvailable(let v): print("\(stamp)  Lidlezz \(v) is out")
         case .rejoined(let ssid): print("\(stamp)  back online on \(ssid)")
         case .licenseRevoked: print("\(stamp)  this license was revoked; contact \(Site.base.absoluteString)")
+        case .sleepStuck: print("\(stamp)  sleep is switched off and the helper isn't answering: run lidlezz helper install, or \(Helper.releaseSleepCommand)")
         }
         fflush(stdout)
     }
@@ -109,7 +110,7 @@ case "helper":
     case .ready: print("helper ready")
     case .needsApproval: print("helper installed, approve it: System Settings › General › Login Items › Allow in the Background")
     case .notInstalled: print("helper not installed (lidlezz helper install)")
-    case .installedButUnreachable: print("helper enabled but not answering; try again in a moment or reinstall the app")
+    case .installedButUnreachable: print("helper enabled but not answering; repair it with: lidlezz helper install")
     }
 case "license":
     if let key = args.dropFirst().first {

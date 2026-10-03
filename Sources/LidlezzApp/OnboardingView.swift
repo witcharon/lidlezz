@@ -70,7 +70,7 @@ struct OnboardingView: View {
     private var permissions: some View {
             VStack(spacing: 1) {
                 step(done: model.helper == .ready, title: "Sleep control",
-                     detail: helperDetail, buttonTitle: model.helper == .needsApproval ? "Open Settings" : "Install",
+                     detail: helperDetail, buttonTitle: helperButton,
                      action: model.installHelper)
                 step(done: model.hooksInstalled, title: "Coding agents",
                      detail: agentsDetail, buttonTitle: "Connect", action: model.installHooks)
@@ -99,7 +99,15 @@ struct OnboardingView: View {
         case .ready: return "Background helper toggles pmset disablesleep and Low Power Mode"
         case .needsApproval: return "Allow Lidlezz under Login Items › Allow in the Background, then come back"
         case .notInstalled: return "A small background helper toggles pmset disablesleep and Low Power Mode"
-        case .installedButUnreachable: return "Helper is enabled but not answering; reinstall the app if this persists"
+        case .installedButUnreachable: return "Helper is enabled but not answering, so sleep can't be switched back on"
+        }
+    }
+
+    private var helperButton: String {
+        switch model.helper {
+        case .needsApproval: return "Open Settings"
+        case .installedButUnreachable: return "Repair"
+        default: return "Install"
         }
     }
 

@@ -17,8 +17,14 @@ public enum Helper {
         }
     }
 
+    /// Turns sleep back on by hand when the helper cannot.
+    public static let releaseSleepCommand = "sudo pmset -a disablesleep 0"
+
     /// Registers the daemon. macOS then asks the user to allow it under Login Items › Allow in the Background.
+    /// An enabled helper that does not answer is registered afresh: launchd can keep failing to spawn it
+    /// ("Could not find and/or execute program") while it still shows as enabled.
     public static func install() -> State {
+        if state() == .installedButUnreachable { try? service.unregister() }
         try? service.register()
         let s = state()
         if s == .needsApproval { SMAppService.openSystemSettingsLoginItems() }

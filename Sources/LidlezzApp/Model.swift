@@ -136,6 +136,7 @@ final class Model: ObservableObject {
         notifier.post(notice)
         if case .emergency = notice { checkEmergency() }
         if case .trialOver = notice { license = License.status; showLicense() }
+        if case .sleepStuck = notice { showOnboarding() }
         refresh()
     }
 
