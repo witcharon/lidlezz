@@ -41,7 +41,8 @@ public struct Snapshot {
 /// Sleep control. There is no mode to switch on: every tick asks one question — should the Mac be
 /// allowed to sleep right now — and holds or releases accordingly. An agent that is working (or a
 /// manual override) holds sleep off; heat, a flat battery or simple inactivity let it go again.
-/// Once the lid closes everything gets throttled, and the guards can force sleep outright.
+/// Once the lid closes on battery everything gets throttled; on the charger Claude Code keeps full
+/// speed. Either way the guards can force sleep outright.
 public final class Guardian {
     public static let warnCelsius = 85.0
     public static let sleepCelsius = 95.0
@@ -204,7 +205,8 @@ public final class Guardian {
 
         rejoinTick()
 
-        if snapshot.lidClosed { enterLidMode() } else { leaveLidMode() }
+        let onPower = snapshot.battery?.onAC ?? true
+        if snapshot.lidClosed && !onPower { enterLidMode() } else { leaveLidMode() }
     }
 
     /// Off the network with a hotspot saved: join it again. macOS gets a grace period to do it

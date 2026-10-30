@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import ServiceManagement
 import SwiftUI
 import LidlezzCore
 
@@ -11,6 +12,9 @@ final class Model: ObservableObject {
     @Published var rejoinSSID = Settings.rejoinSSID { didSet { Settings.rejoinSSID = rejoinSSID } }
     @Published var autoStart = Settings.autoStart {
         didSet { Settings.autoStart = autoStart; queue.async { self.guardian.autoStart = self.autoStart } }
+    }
+    @Published var openAtLogin = Settings.openAtLogin {
+        didSet { Settings.openAtLogin = openAtLogin; applyOpenAtLogin() }
     }
     @Published var emergency = EmergencyRecord.load()
     @Published var helper = Helper.State.notInstalled
@@ -42,6 +46,7 @@ final class Model: ObservableObject {
         Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil,
                                                           queue: .main) { [weak self] _ in self?.checkEmergency() }
+        applyOpenAtLogin()
         refresh()
         checkPermissions()
         if !Settings.onboarded { showOnboarding() }
@@ -138,6 +143,10 @@ final class Model: ObservableObject {
         if case .trialOver = notice { license = License.status; showLicense() }
         if case .sleepStuck = notice { showOnboarding() }
         refresh()
+    }
+
+    private func applyOpenAtLogin() {
+        if openAtLogin { try? SMAppService.mainApp.register() } else { try? SMAppService.mainApp.unregister() }
     }
 
     // MARK: windows

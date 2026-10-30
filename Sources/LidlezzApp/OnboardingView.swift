@@ -37,10 +37,10 @@ struct OnboardingView: View {
             VStack(spacing: 1) {
                 feature("bolt.fill", "Awake only while Claude Code works",
                         "Claude Code's hooks report every session. When it finishes, or sits idle for the time you pick below, the Mac sleeps normally.")
-                feature("laptopcomputer", "Throttled the moment the lid closes",
-                        "Claude Code moves to efficiency cores, Low Power Mode turns on, Photos analysis and Time Machine pause.")
+                feature("laptopcomputer", "Throttled when the lid closes on battery",
+                        "Claude Code moves to efficiency cores, Low Power Mode turns on, Photos analysis and Time Machine pause. On the charger it keeps full speed.")
                 feature("thermometer.medium", "Watched every 3 seconds",
-                        "At 85° it throttles harder. At 95° it saves the session and puts the Mac to sleep.")
+                        "At 85° it warns you. At 95° it saves the session and puts the Mac to sleep.")
             }
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))
             VStack(alignment: .leading, spacing: 12) {
@@ -48,6 +48,7 @@ struct OnboardingView: View {
                 BatteryFloorRow()
                 IdleTimeoutRow()
                 RejoinRow()
+                OpenAtLoginRow()
             }
             .padding(14)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 10))

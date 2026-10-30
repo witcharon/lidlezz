@@ -43,7 +43,7 @@ Tam destek = kapak kapalı mod, sıcaklık koruması, pil tabanı, E-core kısma
 | MacBook Air 13" / 15" | M4 | 2025 | Tam destek, geliştirme makinesi |
 | MacBook Air 13" / 15" | M5 | 2026 | Tam destek bekleniyor (aynı sensör ailesi), test edilmedi |
 
-Not: MacBook Air fansızdır; kapalı kapak + çanta senaryosunda 85° kısma eşiğine MacBook Pro'dan daha çabuk ulaşır. Asıl hedef kitle burası.
+Not: MacBook Air fansızdır; kapalı kapak + çanta senaryosunda 85° uyarı eşiğine MacBook Pro'dan daha çabuk ulaşır. Asıl hedef kitle burası.
 
 ### MacBook Pro
 

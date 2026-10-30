@@ -16,6 +16,13 @@ public enum Settings {
         set { defaults.set(newValue, forKey: "autoStart") }
     }
 
+    /// Start with the user's session: after a restart nothing else brings Lidlezz back, and
+    /// agents that carry on working would be left unguarded.
+    public static var openAtLogin: Bool {
+        get { defaults.object(forKey: "openAtLogin") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "openAtLogin") }
+    }
+
     /// Minutes without Claude Code activity before an automatically started mode turns off.
     public static var idleMinutes: Int {
         get { defaults.object(forKey: "idleMinutes") as? Int ?? 10 }

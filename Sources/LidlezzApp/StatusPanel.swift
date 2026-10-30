@@ -18,6 +18,7 @@ struct StatusPanel: View {
             batteryFloorRow
             idleRow
             rejoinRow
+            OpenAtLoginRow().padding(.horizontal, 16).padding(.top, 10)
             footer
         }
         .frame(width: 360)
@@ -59,7 +60,7 @@ struct StatusPanel: View {
         return HStack(spacing: 8) {
             StatCard(label: "SoC temp", value: String(format: "%.0f°", soc),
                      valueColor: snap.guarding ? Theme.temperature(soc) : .primary,
-                     note: snap.guarding ? "throttle at \(Int(Guardian.warnCelsius))°" : "idle")
+                     note: snap.guarding ? "warns at \(Int(Guardian.warnCelsius))°" : "idle")
             StatCard(label: "Battery", value: "\(battery?.percent ?? 0)%",
                      note: snap.guarding ? "sleeps at \(model.batteryFloor)%" : (battery?.onAC == true ? "on AC" : "on battery"))
             StatCard(label: "Power", value: battery?.onAC == true ? "AC" : String(format: "%.1f", battery?.watts ?? 0),
@@ -82,7 +83,7 @@ struct StatusPanel: View {
             .frame(height: 6)
             HStack {
                 Text("40°"); Spacer()
-                Text("\(Int(Guardian.warnCelsius))° throttle"); Spacer()
+                Text("\(Int(Guardian.warnCelsius))° warn"); Spacer()
                 Text("\(Int(Guardian.sleepCelsius))° sleep")
             }
             .font(.system(size: 10)).foregroundStyle(.tertiary)
@@ -231,6 +232,15 @@ struct AutoStartRow: View {
 
     var body: some View {
         Toggle("Stay awake while a coding agent works", isOn: $model.autoStart)
+            .toggleStyle(.switch).tint(.accentColor).font(.system(size: 13))
+    }
+}
+
+struct OpenAtLoginRow: View {
+    @EnvironmentObject var model: Model
+
+    var body: some View {
+        Toggle("Open at login", isOn: $model.openAtLogin)
             .toggleStyle(.switch).tint(.accentColor).font(.system(size: 13))
     }
 }
