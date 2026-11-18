@@ -5,8 +5,6 @@ public enum Notice {
     case batteryLow(Int)
     case emergency(String)
     case limitWait
-    case trialOver
-    case licenseRevoked
     case updateAvailable(String)
     case rejoined(String)
     /// `pmset disablesleep` is on and the helper that would turn it off is not answering.
@@ -74,10 +72,6 @@ public final class Guardian {
 
     /// Keep the Mac awake no matter what the agents report — for tools with no hook API.
     public func holdManually(for seconds: TimeInterval) {
-        guard License.isActive else {
-            if case .revoked = License.status { notify(.licenseRevoked) } else { notify(.trialOver) }
-            return
-        }
         snapshot.manualUntil = Date().addingTimeInterval(seconds)
     }
 
@@ -110,8 +104,6 @@ public final class Guardian {
 
     /// The whole policy, in one place.
     private func shouldHold() -> Bool {
-        guard License.isActive else { snapshot.holdReason = "no licence"; return false }
-
         if let b = snapshot.battery, !b.charging, b.percent <= Settings.batteryFloor {
             snapshot.holdReason = "Battery reached \(b.percent)%"
             return false

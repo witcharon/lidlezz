@@ -14,7 +14,6 @@ lidlezz — keep Claude Code running with the lid closed, without cooking the Ma
   lidlezz helper status
   lidlezz battery <percent> turn the mode off when the battery reaches this level (now \(Settings.batteryFloor)%)
   lidlezz idle <minutes>    turn an automatically started mode off after this much idle time (now \(Settings.idleMinutes) min)
-  lidlezz license <key>     activate a license (no key: show status)
 """
 
 func line(_ s: Snapshot) -> String {
@@ -39,10 +38,8 @@ func guardLoop() {
         case .batteryLow(let p): print("\(stamp)  battery \(p)%, mode turns off at \(Settings.batteryFloor)%")
         case .emergency(let why): print("\(stamp)  EMERGENCY: \(why)")
         case .limitWait: print("\(stamp)  usage limit reached, staying awake until it resets")
-        case .trialOver: print("\(stamp)  trial over: buy a license at \(Site.buy.absoluteString) and run: lidlezz license <key>")
         case .updateAvailable(let v): print("\(stamp)  Lidlezz \(v) is out")
         case .rejoined(let ssid): print("\(stamp)  back online on \(ssid)")
-        case .licenseRevoked: print("\(stamp)  this license was revoked; contact \(Site.base.absoluteString)")
         case .sleepStuck: print("\(stamp)  sleep is switched off and the helper isn't answering: run lidlezz helper install, or \(Helper.releaseSleepCommand)")
         }
         fflush(stdout)
@@ -111,17 +108,6 @@ case "helper":
     case .needsApproval: print("helper installed, approve it: System Settings › General › Login Items › Allow in the Background")
     case .notInstalled: print("helper not installed (lidlezz helper install)")
     case .installedButUnreachable: print("helper enabled but not answering; repair it with: lidlezz helper install")
-    }
-case "license":
-    if let key = args.dropFirst().first {
-        if let l = License.parse(key) { Settings.licenseKey = key; print("licensed to \(l.email)") } else { print("invalid license") }
-    } else {
-        switch License.status {
-        case .licensed(let l): print("licensed to \(l.email)")
-        case .trial(let d): print("trial, \(d) days left")
-        case .expired: print("trial over: \(Site.buy.absoluteString)")
-        case .revoked: print("license revoked: \(Site.base.absoluteString)")
-        }
     }
 case "idle":
     if let m = args.dropFirst().first.flatMap(Int.init), (3...30).contains(m) {

@@ -1,103 +1,122 @@
-# Lidlezz
+<p align="center">
+  <img src="Assets/readme-banner.png" alt="Lidlezz — Close the lid. Keep it running." width="100%">
+</p>
 
-Claude Code'u kapak kapalıyken çalıştır, Mac'i pişirmeden.
+<p align="center">
+  <b>Lidlezz keeps your MacBook awake while your coding agent works, throttles everything the moment the lid closes,<br>
+  and puts the Mac to sleep before it gets hot or the battery runs low.</b>
+</p>
 
-- `claude` çalıştığı sürece Mac'i uyanık tutar; iş bitince her şeyi geri alıp normal uykuya bırakır.
-- Kapak pildeyken kapanınca (harici ekran yoksa) Claude Code ağacını arka plan QoS'una alır, Low Power Mode açar, Time Machine ve fotoğraf analizini duraklatır. Kapak açılınca ya da şarja takılınca geri alır; şarjdayken yavaşlatma yok, ısı ve pil korumaları her durumda çalışır.
-- Açılıp kapanan bir "mod" yok. Lidlezz her üç saniyede tek bir soruyu cevaplar: Mac şu an uyuyabilir mi?
-  Bağlı ajanlardan biri çalışıyorsa uyku engellenir, kimse çalışmıyorsa serbest bırakılır. Karar kapak
-  kapanınca verilemez (o an `pmset disablesleep` kapalıysa Mac hemen uyur), bu yüzden bayrak ajan
-  çalışırken önden hazır tutulur. Hook'u olmayan araçlar için panelde iki saatlik elle bir anahtar var.
-- İki ayar: pil yüzde kaça inince uyku serbest bırakılsın (varsayılan %15) ve son iş bittikten kaç dakika sonra uyku serbest bırakılsın (3-30, varsayılan 10). O süre bir sonraki
-  istem için tanınan pay: iş biter bitmez uyumaz, konuşmanın ortasında kesilmezsin. SoC 95°'yi geçerse de kapanır; kapak kapalıysa Mac uyutulur, oturum `claude --resume` ile sürer.
-- Oturum açılışında kendiliğinden başlar (panelden kapatılabilir): yeniden başlatmadan sonra ajanlar korumasız kalmaz. Her çalışma `~/Library/Application Support/Lidlezz/runs.jsonl` dosyasına bir satır olarak eklenir.
-- "Rejoin when offline": mod açıkken Mac tamamen ağsız kalırsa, seçilen kayıtlı Wi-Fi ağına (iPhone kişisel erişim noktası) yeniden bağlanır. Listede kayıtlı ağların telefon hotspot'ları çıkar. 15 sn bekler, sonra dakikada bir dener. Ağ bir kez elle bağlanmış olmalı; parola macOS'ta duruyor. Varsayılan: Never.
-- Claude Code hook'ları oturumun ne zaman çalışıp ne zaman bittiğini bildirir; mod kendiliğinden açılır, iş bitince 2 dakika sonra kapanır.
+<p align="center">
+  <a href="https://github.com/witcharon/lidlezz/releases/latest/download/Lidlezz.dmg"><img src="https://img.shields.io/badge/Download_for_macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS"></a>
+  <a href="https://lidlezz.app/#donate"><img src="https://img.shields.io/badge/Donate-0a84ff?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate"></a>
+  <a href="https://lidlezz.app"><img src="https://img.shields.io/badge/lidlezz.app-f7f7f7?style=for-the-badge&logoColor=121212" alt="Website"></a>
+</p>
 
-## Kurulum
+<p align="center">
+  <img src="https://img.shields.io/github/v/release/witcharon/lidlezz?style=flat-square&color=121212&label=release" alt="Latest release">
+  <img src="https://img.shields.io/badge/license-MIT-121212?style=flat-square" alt="MIT license">
+  <img src="https://img.shields.io/badge/Apple_Silicon-macOS_14+-121212?style=flat-square" alt="Apple Silicon, macOS 14+">
+</p>
 
-Kullanıcı için:
+---
+
+## Install
 
 ```sh
 brew install --cask witcharon/tap/lidlezz
 ```
 
-ya da [lidlezz-releases](https://github.com/witcharon/lidlezz-releases/releases/latest) sayfasından DMG. Geliştirici için:
+Or download the notarized DMG from [lidlezz.app](https://lidlezz.app) or the [latest release](https://github.com/witcharon/lidlezz/releases/latest).
+
+Lidlezz is free and open source under the [MIT license](LICENSE). If it saves you a night of babysitting a laptop, you can [support its development](https://lidlezz.app/#donate).
+
+## What it does
+
+- **Awake only while an agent works.** Every three seconds Lidlezz asks one question: may the Mac sleep right now? If a connected agent is working, sleep is held off; if none is, it is released. The decision can't wait for the lid to close (if `pmset disablesleep` is off at that moment the Mac sleeps at once), so the flag is set ahead of time while the agent runs.
+- **Throttled the moment the lid closes.** On battery with no external display, closing the lid moves the agent's process tree to background QoS (efficiency cores), turns on Low Power Mode and pauses Time Machine and Photos analysis. Opening the lid or plugging in brings it all back. On the charger nothing is slowed down; heat and battery guards always run.
+- **Watched every three seconds.** SoC temperature is read straight from the sensors. Past 95° lid-closed mode turns off; with the lid closed the Mac is put to sleep and the session continues with `claude --resume`.
+- **Two settings.** The battery level where sleep is allowed again (default 15%) and how many minutes after the last job it waits (3–30, default 10), so the Mac does not drop off between two prompts.
+- **A manual switch** keeps the Mac awake for two hours, for tools that have no hooks.
+- **Rejoin when offline.** If the Mac loses all network mid-run, it can rejoin a saved Wi-Fi network you pick (an iPhone hotspot, say). Off by default.
+- **Opens at login** (can be turned off in the panel), so agents are never left unprotected after a restart. Every run is appended as one line to `~/Library/Application Support/Lidlezz/runs.jsonl`.
+
+## Supported coding agents
+
+Lidlezz needs two things from each tool: which processes to throttle when the lid closes, and, when possible, when it is actually working. Without the second, the heat, battery and throttling guards still work; you just turn the mode on by hand.
+
+| Agent | Coverage | Written to |
+|---|---|---|
+| Claude Code | Full. Start, tool calls, finish, usage-limit waits | `~/.claude/settings.json` |
+| Cursor | Full. sessionStart, beforeSubmitPrompt, preToolUse, stop, sessionEnd | `~/.cursor/hooks.json` |
+| Antigravity | Full. PreToolUse, Stop | `~/.gemini/config/hooks.json` |
+| opencode | Full. tool.execute.before, session.idle | `~/.config/opencode/plugin(s)/lidlezz.js` |
+| Codex CLI | Partial. Only reports that a turn finished | `notify` in `~/.codex/config.toml` |
+| Claude for Mac (Cowork) | None. Use the manual switch | — |
+
+<details>
+<summary>Notes on Codex and desktop apps</summary>
+
+- **Codex has a single event**, `agent-turn-complete`. The hook never says a turn started, but the process does: while a turn runs, Codex spawns child processes for the tools it calls, and none while it waits on you. So it counts as working while those children exist, and idle once the hook reports the turn ended. Later turns in an interactive session are covered the same way.
+- **Codex allows only one notify command.** If you already have one, Lidlezz does not remove it: it installs `~/.codex/lidlezz-notify.sh`, which tells Lidlezz first and then runs your old command. The old command is kept in the script on a `# lidlezz-previous:` line and restored by `lidlezz hooks uninstall codex`.
+- **Desktop apps stay open all day**, so their presence does not mean they are working. For these tools the mode ends on the idle timeout, not when processes disappear.
+- Each writer only touches entries carrying its own signature; your own hooks stay where they are.
+
+</details>
+
+## Command line
+
+The CLI ships inside the app:
 
 ```sh
-./scripts/install.sh   # derler, /Applications/Lidlezz.app olarak kurar, hook'ları ona bağlar, açar
+lidlezz                 # run the mode in the terminal (Ctrl-C turns it off)
+lidlezz status          # temperature, battery, lid, sessions
+lidlezz sensors         # every temperature sensor
+lidlezz agents          # which agents are installed and connected
+lidlezz hooks install   # connect every agent found (uninstall / status)
+lidlezz helper install  # install the helper daemon (status)
+lidlezz battery 20      # battery level where the mode turns off
+lidlezz idle 15         # minutes of idle before an automatic run ends (3-30)
 ```
 
-İlk açılışta kurulum penceresi çıkar: sudoers kuralı, hook'lar, bildirim izni. Sadece paket istersen `./scripts/bundle.sh` → `dist/Lidlezz.app`.
-
-Apple Silicon'da kapak kapalıyken uyanık kalmanın tek yolu `pmset disablesleep`, o da root ister.
-Bunu uygulamanın içindeki küçük bir helper daemon yapar (SMAppService). Kurulumda macOS bir kez
-Sistem Ayarları › Genel › Giriş Öğeleri › Arka Planda İzin Ver onayı ister. Helper yalnızca
-Team ID'si eşleşen imzalı Lidlezz'den gelen çağrıları kabul eder ve sadece `pmset` ile `tmutil` çalıştırır.
-
-İmza: `scripts/bundle.sh` makinedeki "Developer ID Application" ya da "Apple Development" sertifikasını
-bulup hardened runtime ile imzalar; `SIGN_IDENTITY` ile seçebilirsin.
-
-## Komut satırı
-
-```sh
-lidlezz                 # modu terminalde çalıştır (Ctrl-C kapatır)
-lidlezz status          # sıcaklık, pil, kapak, oturumlar
-lidlezz sensors         # tüm sıcaklık sensörleri
-lidlezz hooks install   # ~/.claude/settings.json'a hook'ları ekle (uninstall / status)
-lidlezz helper install  # helper daemon (status)
-lidlezz battery 20      # modun kapanacağı pil yüzdesi
-lidlezz idle 15         # otomatik açılan mod bu kadar dakika boşta kalınca kapansın (3-30)
-```
-
-CLI uygulamanın içindedir: `/Applications/Lidlezz.app/Contents/MacOS/lidlezz`. Terminalden kısa yazmak için:
+To type it short:
 
 ```sh
 ln -s /Applications/Lidlezz.app/Contents/MacOS/lidlezz ~/.local/bin/lidlezz
 ```
 
-## Lisans ve yayın
+## How the helper works
 
-- 7 gün deneme, sonra tek seferlik lisans. Anahtar `LZ-…` biçiminde, Ed25519 imzalı, çevrimdışı doğrulanır (`Sources/LidlezzCore/License.swift`).
-- Satış: Stripe Payment Link → lidlezz-web (`witcharon/lidlezz-web`, Next.js, Dokploy) `/thanks` sayfası → aynı projedeki `/api/license` anahtarı üretir. Şartname: lidlezz-web/LICENSE-API.md.
-- `scripts/keygen.mjs` imza çiftini üretir (bir kez, yapıldı), `scripts/sign.mjs` test anahtarı üretir.
-- İptal: anahtarın içinde alıcıya bağlı, geri çevrilemez bir kimlik var. `node scripts/revoke-id.mjs <e-posta>` kimliği verir; onu `lidlezz-web/public/revoked.json` içine ekleyip deploy edersin. Uygulama listeyi güncelleme kontrolüyle birlikte çeker; sunucuya ulaşamazsa son bilinen liste geçerli kalır, kimsenin lisansı kazara düşmez. Yayınlanan dosyada e-posta yok.
-- İmzalama özel anahtarı login anahtar zincirinde "Lidlezz license signing key" olarak duruyor; `wrangler secret put LICENSE_PRIVATE_KEY` ile Worker'a verilir.
-- Yayın: `VERSION` dosyasını artır, `scripts/release.sh` çalıştır (Developer ID imzası, notarization, `dist/Lidlezz-<v>.dmg`, `dist/latest.json`, `homebrew/lidlezz.rb`). Sonra:
-  `gh release create v<v> dist/Lidlezz-<v>.dmg dist/latest.json --repo witcharon/lidlezz-releases`,
-  `homebrew/lidlezz.rb` dosyasını `witcharon/homebrew-tap` deposundaki `Casks/` altına kopyalayıp push;
-  `dist/appcast.xml` ve `dist/latest.json` dosyalarını `lidlezz-web/public/` altına kopyalayıp deploy et.
-- Depolar: kaynak `witcharon/lidlezz` (private), indirme `witcharon/lidlezz-releases` (public), Homebrew `witcharon/homebrew-tap` (public).
-- Güncelleme iki yoldan gider, çünkü doğru yol kurulumun kaynağına bağlı:
-  - **DMG ile kurulmuşsa** Sparkle devrede. `appcast.xml`'i kendi takvimiyle kontrol eder, indirir, kurar, uygulamayı yeniden başlatır. Panelde "Check for updates…" düğmesi var.
-  - **Homebrew ile kurulmuşsa** (`Caskroom` kaydına bakılır) Sparkle hiç başlatılmaz, çünkü uygulamayı brew yönetiyor. Bunun yerine `latest.json` kontrol edilir, sürüm başına bir kez bildirim atılır ve panelde `brew upgrade --cask lidlezz` komutunu kopyalayan bir düğme çıkar.
-- Sparkle imza anahtarı anahtar zincirinde ("Private key for signing Sparkle updates"); açık yarısı `Info.plist` içinde `SUPublicEDKey` olarak gömülü. `generate_appcast` yalnızca DMG içindeki uygulamada bu anahtar varsa imzalar.
+On Apple Silicon the only way to stay awake with the lid closed is `pmset disablesleep`, and that needs root. A small helper daemon inside the app does it (`SMAppService`). On first setup macOS asks once for approval in System Settings › General › Login Items › Allow in the Background. The helper only accepts calls from the Lidlezz app signed by the same team as the helper itself, and only runs `pmset` and `tmutil`.
 
-## Desteklenen kodlama ajanları
+## Requirements
 
-Her araçtan iki şey isteniyor: kapak kapanınca hangi süreçlerin kısılacağı ve mümkünse ne zaman
-gerçekten çalıştığı. İkincisi olmadan da sıcaklık, pil ve kısma korumaları çalışır; sadece modu
-elle açman gerekir.
+Apple Silicon MacBook Air or MacBook Pro, macOS 14 Sonoma or later. Details in [docs/SUPPORTED-MACS.md](docs/SUPPORTED-MACS.md).
 
-| Ajan | Bağlantı | Nereye yazılır |
-|---|---|---|
-| Claude Code | Tam. Başlangıç, araç çağrısı, bitiş, kullanım limiti beklemesi | `~/.claude/settings.json` |
-| Cursor | Tam. sessionStart, beforeSubmitPrompt, preToolUse, stop, sessionEnd | `~/.cursor/hooks.json` |
-| Antigravity | Tam. PreToolUse, Stop | `~/.gemini/config/hooks.json` |
-| opencode | Tam. tool.execute.before, session.idle | `~/.config/opencode/plugin(s)/lidlezz.js` |
-| Codex CLI | Kısmi. Yalnızca turun bittiğini bildirir | `~/.codex/config.toml` içindeki `notify` |
-| Claude for Mac (Cowork) | Yok. Modu elle aç | — |
+## Build from source
 
-Notlar:
+Requires Xcode command line tools (Swift 5.10+).
 
-- **Codex'in tek olayı var**, `agent-turn-complete`. Turun başladığını hook'tan öğrenemiyoruz, ama
-  sürecin kendisi söylüyor: tur çalışırken codex çağırdığı araçlar için alt süreçler açar, kendi
-  isteminde beklerken açmaz. Bu yüzden alt süreç varsa çalışıyor sayılır, hook tur bittiğini
-  bildirince boşta işaretlenir. İnteraktif oturumda sonraki turlar da böylece kapsanır.
-- **Codex'te tek bir notify komutu olabiliyor.** Kullanıcının kendi komutu varsa Lidlezz onu silmez;
-  `~/.codex/lidlezz-notify.sh` adında, önce Lidlezz'e haber verip sonra eski komutu çalıştıran bir
-  betik kurar. Eski komut betiğin içinde `# lidlezz-previous:` satırında saklanır ve
-  `lidlezz hooks uninstall codex` ile geri konur.
-- **Masaüstü uygulamaları gün boyu açık durur**, o yüzden varlıkları "çalışıyor" demek değildir.
-  Modun kendiliğinden bitmesi bu araçlarda süreçlerin kaybolmasına değil, boşta kalma süresine bakar.
-- Her yazıcı yalnızca kendi imzasını taşıyan kayıtlara dokunur; kullanıcının kendi hook'ları yerinde kalır.
+```sh
+git clone https://github.com/witcharon/lidlezz.git && cd lidlezz
+./scripts/install.sh   # builds, installs /Applications/Lidlezz.app, wires the hooks, opens it
+```
+
+`./scripts/bundle.sh` only builds `dist/Lidlezz.app`. It signs with the first "Developer ID Application" or "Apple Development" certificate in your keychain; pick one with `SIGN_IDENTITY`. The helper needs a real signature (not ad hoc) to accept the app's calls, so build with a certificate of your own.
+
+| Folder | What lives there |
+|---|---|
+| `Sources/LidlezzCore` | Guard policy, sensors, power, hooks, settings |
+| `Sources/LidlezzApp` | Menu bar app (SwiftUI) and Sparkle updates |
+| `Sources/LidlezzHelper` | Root daemon that runs `pmset` / `tmutil` |
+| `Sources/lidlezz` | Command line tool |
+
+Maintainers: the release flow is in [RELEASING.md](RELEASING.md).
+
+## Contributing
+
+Issues and pull requests are welcome. Keep changes small and focused; Lidlezz deliberately has very few settings.
+
+## License
+
+[MIT](LICENSE)

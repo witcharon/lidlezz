@@ -30,14 +30,10 @@ final class Notifier {
             (title, body) = ("Lidlezz turned lid-closed mode off", why)
         case .limitWait:
             (title, body) = ("Usage limit reached", "Keeping the Mac awake so Claude Code can continue when the limit resets.")
-        case .trialOver:
-            (title, body) = ("Trial over", "Buy a license to keep using lid-closed mode.")
         case .updateAvailable(let v):
             (title, body) = ("Lidlezz \(v) is out", "Run \(Install.brewUpgradeCommand) to update.")
         case .rejoined(let ssid):
             (title, body) = ("Back online", "Rejoined \(ssid) so Claude Code can carry on.")
-        case .licenseRevoked:
-            (title, body) = ("License revoked", "This key is no longer valid. Get in touch if that looks wrong.")
         case .sleepStuck:
             (title, body) = ("Your Mac can't sleep", "Sleep is switched off and the helper isn't answering. "
                              + "Open Lidlezz › Set up… › Repair, or run: \(Helper.releaseSleepCommand)")

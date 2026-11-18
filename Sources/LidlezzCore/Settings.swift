@@ -35,25 +35,6 @@ public enum Settings {
         set { defaults.set(newValue, forKey: "rejoinSSID") }
     }
 
-    /// Last list fetched from the site. Kept across launches so a revoked key stays revoked offline.
-    public static var revokedIDs: [String] {
-        get { defaults.stringArray(forKey: "revokedIDs") ?? [] }
-        set { defaults.set(newValue, forKey: "revokedIDs") }
-    }
-
-    public static var licenseKey: String? {
-        get { defaults.string(forKey: "licenseKey") }
-        set { defaults.set(newValue, forKey: "licenseKey") }
-    }
-
-    /// Start of the trial. Recorded the first time anything reads it.
-    public static var firstLaunch: Date {
-        if let d = defaults.object(forKey: "firstLaunch") as? Date { return d }
-        let now = Date()
-        defaults.set(now, forKey: "firstLaunch")
-        return now
-    }
-
     public static var onboarded: Bool {
         get { defaults.bool(forKey: "onboarded") }
         set { defaults.set(newValue, forKey: "onboarded") }

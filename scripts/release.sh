@@ -1,11 +1,10 @@
 #!/bin/sh
-# Makes a notarized dist/Lidlezz-<version>.dmg and dist/latest.json for the site.
+# Makes a notarized dist/Lidlezz-<version>.dmg (plus a stable-named copy), the appcast and dist/latest.json. See RELEASING.md.
 # One-time setup: a "Developer ID Application" certificate in the keychain and
 #   xcrun notarytool store-credentials lidlezz --apple-id <id> --team-id <team> --password <app-specific password>
 set -e
 cd "$(dirname "$0")/.."
-# Where the DMG will be downloadable from, and the site. Override with env vars until these are final.
-DOWNLOAD_BASE=${DOWNLOAD_BASE:-https://github.com/witcharon/lidlezz-releases/releases/download}
+DOWNLOAD_BASE=${DOWNLOAD_BASE:-https://github.com/witcharon/lidlezz/releases/download}
 HOMEPAGE=${HOMEPAGE:-https://lidlezz.app}
 security find-identity -v -p codesigning | grep -q "Developer ID Application" || { echo "need a Developer ID Application certificate"; exit 1; }
 export SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk '{print $2}')
@@ -21,6 +20,8 @@ rm -rf dist/dmg
 codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
 xcrun notarytool submit "$DMG" --keychain-profile lidlezz --wait
 xcrun stapler staple "$DMG"
+# Same file under a fixed name, so releases/latest/download/Lidlezz.dmg always works.
+cp "$DMG" dist/Lidlezz.dmg
 # Sparkle's feed. One item is enough: the app only needs to learn that a newer build exists.
 APPCAST_TOOL=.build/artifacts/sparkle/Sparkle/bin/generate_appcast
 rm -rf dist/appcast && mkdir -p dist/appcast
@@ -36,7 +37,7 @@ JSON
 sed -e "s|__VERSION__|$V|" -e "s|__SHA256__|$SHA|" -e "s|__URL__|$URL|" -e "s|__HOMEPAGE__|$HOMEPAGE|" \
   homebrew/lidlezz.rb.template > homebrew/lidlezz.rb
 echo "release ready:"
-echo "  $DMG                → GitHub release v$V"
+echo "  $DMG dist/Lidlezz.dmg → gh release create v$V ... --repo witcharon/lidlezz"
 echo "  dist/appcast.xml     → lidlezz-web/public/appcast.xml   (Sparkle, DMG users)"
 echo "  dist/latest.json     → lidlezz-web/public/latest.json   (Homebrew users' notice)"
 echo "  homebrew/lidlezz.rb  → witcharon/homebrew-tap Casks/"

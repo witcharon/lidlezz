@@ -138,8 +138,7 @@ struct StatusPanel: View {
     private var footer: some View {
         HStack(spacing: 14) {
             Button("Set up…") { model.showOnboarding() }
-            // The buyer's email stays visible: a shared key carries the sharer's address.
-            Button(model.licenseLine) { model.showLicense() }
+            Link("Donate", destination: Site.donate)
             if model.canSelfUpdate {
                 Button("Check for updates…") { model.checkForUpdateNow() }
             } else if let u = model.updateAvailable {

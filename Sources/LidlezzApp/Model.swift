@@ -20,7 +20,6 @@ final class Model: ObservableObject {
     @Published var helper = Helper.State.notInstalled
     @Published var agents: [(agent: Agent, wired: Bool)] = []
     @Published var notificationsAllowed = false
-    @Published var license = License.status
     /// Saved hotspots the Mac can rejoin without asking for a password.
     @Published var hotspots: [String] = []
 
@@ -29,7 +28,6 @@ final class Model: ObservableObject {
     private let notifier = Notifier()
     private let onboarding = PanelWindow()
     private let report = PanelWindow()
-    private let licenseWindow = PanelWindow()
     private lazy var updater: Updater = {
         let u = Updater(notifier: notifier)
         u.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &bag)
@@ -56,30 +54,7 @@ final class Model: ObservableObject {
         Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in self?.checkForUpdate() }
     }
 
-    // MARK: license and updates
-
-    var isLicensed: Bool { if case .licensed = license { return true }; return false }
-
-    var licenseLine: String {
-        switch license {
-        case .licensed(let l): return "Licensed to \(l.email)"
-        case .trial(let d): return "Trial · \(d) day\(d == 1 ? "" : "s") left · Enter license…"
-        case .expired: return "Trial over · Enter license…"
-        case .revoked: return "License revoked · Enter license…"
-        }
-    }
-
-    func showLicense() {
-        licenseWindow.show(title: "Lidlezz license", width: 420) { LicenseView().environmentObject(self) }
-    }
-
-    func activate(_ key: String) -> Bool {
-        guard License.parse(key) != nil else { return false }
-        Settings.licenseKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        license = License.status
-        licenseWindow.close()
-        return true
-    }
+    // MARK: updates
 
     var canSelfUpdate: Bool { updater.canSelfUpdate }
 
@@ -94,7 +69,6 @@ final class Model: ObservableObject {
 
     private func checkForUpdate() {
         updater.check()
-        Revocation.refresh { [weak self] in self?.license = License.status }
     }
 
     // MARK: guarding
@@ -140,7 +114,6 @@ final class Model: ObservableObject {
     private func handle(_ notice: Notice) {
         notifier.post(notice)
         if case .emergency = notice { checkEmergency() }
-        if case .trialOver = notice { license = License.status; showLicense() }
         if case .sleepStuck = notice { showOnboarding() }
         refresh()
     }
