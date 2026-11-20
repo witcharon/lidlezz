@@ -24,6 +24,7 @@
 ## Install
 
 ```sh
+brew trust witcharon/tap   # Homebrew asks you to trust third-party taps once
 brew install --cask witcharon/tap/lidlezz
 ```
 

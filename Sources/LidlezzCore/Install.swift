@@ -8,5 +8,5 @@ public enum Install {
             .contains { FileManager.default.fileExists(atPath: $0) }
     }
 
-    public static let brewUpgradeCommand = "brew upgrade --cask lidlezz"
+    public static let brewUpgradeCommand = "brew trust witcharon/tap && brew upgrade --cask lidlezz"
 }

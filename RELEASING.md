@@ -16,7 +16,7 @@ One-time setup: a "Developer ID Application" certificate in the login keychain a
 Updates take one of two paths, depending on how the app was installed:
 
 - **Installed from the DMG:** Sparkle checks `appcast.xml` on its own schedule, downloads, installs and relaunches. The panel has a "Check for updates…" button.
-- **Installed with Homebrew** (detected from the `Caskroom` receipt): Sparkle never starts, because brew owns the app. Lidlezz reads `latest.json` instead, posts one notification per version, and the panel shows a button that copies `brew upgrade --cask lidlezz`.
+- **Installed with Homebrew** (detected from the `Caskroom` receipt): Sparkle never starts, because brew owns the app. Lidlezz reads `latest.json` instead, posts one notification per version, and the panel shows a button that copies `brew trust witcharon/tap && brew upgrade --cask lidlezz` (Homebrew refuses untrusted third-party taps).
 
 The Sparkle signing key is in the keychain ("Private key for signing Sparkle updates"); its public half is embedded in `Info.plist` as `SUPublicEDKey`. `generate_appcast` only signs when that key is present.
 
