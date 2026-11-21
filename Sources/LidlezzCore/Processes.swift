@@ -42,6 +42,14 @@ public enum Processes {
         return result
     }
 
+    /// Where a process is working, which `ps` does not say.
+    static func workingDirectory(of pid: Int32) -> String? {
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
+        return withUnsafeBytes(of: &info.pvi_cdir.vip_path) { String(cString: $0.bindMemory(to: CChar.self).baseAddress!) }
+    }
+
     public static func setBackground(_ pids: Set<Int32>, _ on: Bool) {
         for pid in pids { Shell.run("/usr/sbin/taskpolicy", [on ? "-b" : "-B", "-p", String(pid)]) }
     }

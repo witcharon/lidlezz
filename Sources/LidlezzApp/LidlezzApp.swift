@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import LidlezzCore
 
 @main
 struct LidlezzApp: App {
@@ -36,9 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.behavior = .transient
 
         titleUpdates = model.$snap.sink { [weak self] snap in
-            self?.statusItem?.button?.title = snap.guarding ? self?.model.menuTitle ?? "" : ""
+            self?.statusItem?.button?.title = snap.guarding ? Model.menuTitle(snap) : ""
         }
     }
+
+    func applicationWillTerminate(_ notification: Notification) { model.shutdown() }
 
     @objc private func togglePopover() {
         guard let button = statusItem?.button else { return }

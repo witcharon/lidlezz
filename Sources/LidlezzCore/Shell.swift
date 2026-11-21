@@ -19,6 +19,11 @@ enum Shell {
         p.waitUntilExit()
         return Result(ok: p.terminationStatus == 0, output: String(decoding: data, as: UTF8.self))
     }
+
+    /// One argument, safe to paste into a shell command.
+    static func quoted(_ s: String) -> String {
+        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
 }
 
 /// ~/Library/Application Support/Lidlezz

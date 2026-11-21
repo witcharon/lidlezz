@@ -124,9 +124,10 @@ public enum Sessions {
     /// Codex only reports the end of a turn. Its sessions are created from the running process
     /// (see `observe`), and this marks them done.
     private static func applyCodex(_ json: [String: Any]) {
+        // The turn that ended is the one in that directory; each session keeps its own.
         let cwd = json["cwd"] as? String
-        for s in all() where s.agent == "codex" && (cwd == nil || s.cwd.isEmpty || s.cwd == cwd!) {
-            update(s.id, agent: "codex", cwd: cwd) { $0.working = false }
+        for s in all() where s.agent == "codex" && (cwd == nil || s.cwd.isEmpty || s.cwd == cwd) {
+            update(s.id, agent: "codex", cwd: nil) { $0.working = false }
         }
     }
 
@@ -139,7 +140,7 @@ public enum Sessions {
             let live = processes.filter { agent.processNames.contains($0.name) }
             for p in live {
                 let runningTools = processes.contains { $0.ppid == p.pid }
-                update("\(agent.id):\(p.pid)", agent: agent.id, cwd: nil) { s in
+                update("\(agent.id):\(p.pid)", agent: agent.id, cwd: Processes.workingDirectory(of: p.pid)) { s in
                     if runningTools { s.working = true }
                 }
             }
@@ -160,7 +161,8 @@ public enum Sessions {
         if let cwd, !cwd.isEmpty { s.cwd = cwd }
         change(&s)
         s.updatedAt = Date()
-        if let out = try? JSONEncoder().encode(s) { try? out.write(to: file(id)) }
+        // Atomic: the app reads these files while the hooks write them.
+        if let out = try? JSONEncoder().encode(s) { try? out.write(to: file(id), options: .atomic) }
     }
 
     private static func end(_ id: String) { try? FileManager.default.removeItem(at: file(id)) }

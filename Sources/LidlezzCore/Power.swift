@@ -58,10 +58,22 @@ public enum Power {
     }
 
     /// The idle sleep timer for the current power source, in minutes; 0 means never.
-    public static func idleSleepMinutes() -> Int {
-        let line = Shell.run("/usr/bin/pmset", ["-g"]).output.split(separator: "\n")
-            .first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("sleep ") }
-        return line.flatMap { Int($0.split(separator: " ", omittingEmptySubsequences: true).dropFirst().first ?? "") } ?? 0
+    public static func idleSleepMinutes() -> Int { pmsetSetting("sleep") ?? 0 }
+
+    public static func lowPowerMode() -> Bool { pmsetSetting("lowpowermode") == 1 }
+
+    /// One value from `pmset -g`, for the current power source.
+    private static func pmsetSetting(_ key: String) -> Int? {
+        for line in Shell.run("/usr/bin/pmset", ["-g"]).output.split(separator: "\n") {
+            let words = line.split(separator: " ")
+            if words.count > 1, words[0] == key { return Int(words[1]) }
+        }
+        return nil
+    }
+
+    /// Automatic backups are on. Unknown (the file can be unreadable) counts as on.
+    public static func timeMachineAutoBackup() -> Bool {
+        NSDictionary(contentsOfFile: "/Library/Preferences/com.apple.TimeMachine.plist")?["AutoBackup"] as? Bool ?? true
     }
 
     /// Lid closed with a monitor attached is a desk setup, not a bag. Asked of the hardware: with the

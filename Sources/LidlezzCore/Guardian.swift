@@ -57,6 +57,9 @@ public final class Guardian {
     /// not drop out from under someone who is about to send the next prompt.
     private var lastBusy: Date?
     private var throttled = Set<Int32>()
+    /// What lid mode switched itself, so leaving it never undoes a choice the user made.
+    private var turnedOnLowPower = false
+    private var turnedOffTimeMachine = false
     private var peak = 0.0
     private var batteryStart = 0
     private var warnedHot = false
@@ -77,6 +80,13 @@ public final class Guardian {
 
     public func releaseManual() { snapshot.manualUntil = nil }
 
+    /// The owner is going away: let go of everything, so no `disablesleep` outlives the process.
+    public func shutdown() {
+        releaseManual()
+        autoStart = false
+        tick()
+    }
+
     @discardableResult
     public func tick() -> Snapshot {
         snapshot.soc = Thermal.socCelsius()
@@ -95,8 +105,8 @@ public final class Guardian {
         if !wanted && snapshot.guarding {
             let danger = snapshot.holdReason.hasPrefix("Battery") || snapshot.holdReason.hasPrefix("SoC")
             let lidWasClosed = snapshot.lidClosed
-            stopHold(reason: snapshot.holdReason)
-            if danger && lidWasClosed { forceSleep(snapshot.holdReason) }
+            let record = stopHold(reason: snapshot.holdReason)
+            if danger && lidWasClosed { forceSleep(record) }
         }
         if snapshot.guarding { holdTick() } else if ownsSleep { letSleep() }
         return snapshot
@@ -144,7 +154,8 @@ public final class Guardian {
         if manageSleep { Power.setSleepDisabled(true) }
     }
 
-    private func stopHold(reason: String) {
+    @discardableResult
+    private func stopHold(reason: String) -> EmergencyRecord {
         let record = record(reason)
         record.saveAsLastRun()
         snapshot.lastRun = record
@@ -153,6 +164,7 @@ public final class Guardian {
         Power.releaseAwake()
         snapshot.guarding = false
         snapshot.startedAt = nil
+        return record
     }
 
     /// Not holding: make sure nothing still keeps the Mac up that should not. macOS decides lid sleep
@@ -182,6 +194,8 @@ public final class Guardian {
     }
 
     private func holdTick() {
+        // The helper may get approved while a hold is already running.
+        if !manageSleep, Power.hasSleepControl() { manageSleep = true; Power.setSleepDisabled(true) }
         let soc = snapshot.soc ?? 0
         peak = max(peak, soc)
 
@@ -228,10 +242,10 @@ public final class Guardian {
     }
 
     /// Heat or a flat battery with the lid shut: save the session and put the Mac to sleep for real.
-    private func forceSleep(_ reason: String) {
-        record(reason).save()
+    private func forceSleep(_ record: EmergencyRecord) {
+        record.save()
         snapshot.manualUntil = nil
-        notify(.emergency(reason))
+        notify(.emergency(record.reason))
         lastLidSleep = Date()
         Power.sleepNow()
     }
@@ -240,12 +254,12 @@ public final class Guardian {
         let pids = Set(snapshot.processes.map(\.pid))
         if !snapshot.lidMode {
             snapshot.lidMode = true
-            if manageSleep {
-                Power.setLowPowerMode(true)
-                Power.setTimeMachine(enabled: false)
-            }
+            turnedOnLowPower = manageSleep && !Power.lowPowerMode()
+            turnedOffTimeMachine = manageSleep && Power.timeMachineAutoBackup()
+            if turnedOnLowPower { Power.setLowPowerMode(true) }
+            if turnedOffTimeMachine { Power.setTimeMachine(enabled: false) }
             snapshot.paused = Processes.setPaused(true)
-                + (manageSleep ? ["Time Machine", "Low Power Mode on"] : [])
+                + (turnedOffTimeMachine ? ["Time Machine"] : []) + (turnedOnLowPower ? ["Low Power Mode on"] : [])
         }
         let fresh = pids.subtracting(throttled)
         Processes.setBackground(fresh, true)
@@ -259,10 +273,9 @@ public final class Guardian {
         Processes.setBackground(throttled.intersection(snapshot.processes.map(\.pid)), false)
         throttled.removeAll()
         _ = Processes.setPaused(false)
-        if manageSleep {
-            Power.setLowPowerMode(false)
-            Power.setTimeMachine(enabled: true)
-        }
+        if turnedOnLowPower { Power.setLowPowerMode(false) }
+        if turnedOffTimeMachine { Power.setTimeMachine(enabled: true) }
+        turnedOnLowPower = false; turnedOffTimeMachine = false
     }
 
     public static func duration(_ seconds: TimeInterval) -> String {

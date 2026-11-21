@@ -98,7 +98,7 @@ struct StatusPanel: View {
         Section(title: "Kept alive") {
             VStack(alignment: .leading, spacing: 6) {
                 ForEach(snap.sessions) { s in
-                    ProcessRow(pulse: s.working, color: s.waiting ? Theme.orange : Theme.green, name: "claude",
+                    ProcessRow(pulse: s.working, color: s.waiting ? Theme.orange : Theme.green, name: s.agent ?? "claude",
                                detail: s.waiting ? "waiting for the usage limit to reset"
                                    : s.prompt.isEmpty ? s.project : "\(s.prompt) · \(s.toolCalls) tool calls",
                                tag: snap.lidMode ? "bg QoS" : "")
@@ -146,7 +146,7 @@ struct StatusPanel: View {
                     .foregroundStyle(Color.accentColor)
             }
             Spacer()
-            Button("Quit Lidlezz") { model.quit() }
+            Button("Quit Lidlezz") { NSApp.terminate(nil) }
         }
         .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(.secondary)
         .padding(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))

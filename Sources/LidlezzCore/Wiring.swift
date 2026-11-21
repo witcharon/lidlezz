@@ -17,12 +17,12 @@ enum ClaudeWiring {
     }
 
     static func isInstalled() -> Bool {
-        guard let hooks = JSONFile.read(file)["hooks"] as? [String: Any] else { return false }
+        guard let hooks = JSONFile.read(file)?["hooks"] as? [String: Any] else { return false }
         return events.allSatisfy { (hooks[$0] as? [Any])?.contains(where: isOurs) == true }
     }
 
     static func install(_ executable: String) -> Bool {
-        var json = JSONFile.read(file)
+        guard var json = JSONFile.read(file) else { return false }
         var hooks = (json["hooks"] as? [String: Any]) ?? [:]
         let group: [String: Any] = ["hooks": [["type": "command", "command": "\"\(executable)\"\(signature)"]]]
         for event in events {
@@ -35,7 +35,7 @@ enum ClaudeWiring {
     }
 
     static func uninstall() -> Bool {
-        var json = JSONFile.read(file)
+        guard var json = JSONFile.read(file) else { return false }
         guard var hooks = json["hooks"] as? [String: Any] else { return true }
         for event in events {
             let rest = ((hooks[event] as? [Any]) ?? []).filter { !isOurs($0) }
@@ -59,12 +59,12 @@ enum CursorWiring {
     }
 
     static func isInstalled() -> Bool {
-        guard let hooks = JSONFile.read(file)["hooks"] as? [String: Any] else { return false }
+        guard let hooks = JSONFile.read(file)?["hooks"] as? [String: Any] else { return false }
         return events.allSatisfy { (hooks[$0] as? [Any])?.contains(where: isOurs) == true }
     }
 
     static func install(_ executable: String) -> Bool {
-        var json = JSONFile.read(file)
+        guard var json = JSONFile.read(file) else { return false }
         json["version"] = 1
         var hooks = (json["hooks"] as? [String: Any]) ?? [:]
         for event in events {
@@ -77,7 +77,7 @@ enum CursorWiring {
     }
 
     static func uninstall() -> Bool {
-        var json = JSONFile.read(file)
+        guard var json = JSONFile.read(file) else { return false }
         guard var hooks = json["hooks"] as? [String: Any] else { return true }
         for event in events {
             let rest = ((hooks[event] as? [Any]) ?? []).filter { !isOurs($0) }
@@ -97,12 +97,12 @@ enum AntigravityWiring {
     private static var file: URL { Agents.home.appendingPathComponent(".gemini/config/hooks.json") }
 
     static func isInstalled() -> Bool {
-        guard let ours = JSONFile.read(file)[group] as? [String: Any] else { return false }
+        guard let ours = JSONFile.read(file)?[group] as? [String: Any] else { return false }
         return events.allSatisfy { ours[$0] != nil }
     }
 
     static func install(_ executable: String) -> Bool {
-        var json = JSONFile.read(file)
+        guard var json = JSONFile.read(file) else { return false }
         var ours: [String: Any] = [:]
         for event in events {
             ours[event] = [["hooks": [["type": "command",
@@ -113,8 +113,8 @@ enum AntigravityWiring {
     }
 
     static func uninstall() -> Bool {
-        var json = JSONFile.read(file)
-        json.removeValue(forKey: group)
+        guard var json = JSONFile.read(file) else { return false }
+        guard json.removeValue(forKey: group) != nil else { return true }
         return JSONFile.write(json, to: file)
     }
 }
@@ -181,24 +181,38 @@ enum CodexWiring {
         ((try? String(contentsOf: file, encoding: .utf8)) ?? "").components(separatedBy: .newlines)
     }
 
-    private static func notifyLine(_ lines: [String]) -> String? {
-        lines.first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("notify") }
+    /// The `notify = [...]` assignment: the lines it covers (the array may span several) and its argv.
+    private static func notifyEntry(_ lines: [String]) -> (range: Range<Int>, argv: [String])? {
+        guard let start = lines.firstIndex(where: { $0.range(of: #"^\s*notify\s*="#, options: .regularExpression) != nil })
+        else { return nil }
+        let opensArray = lines[start].range(of: #"=\s*\["#, options: .regularExpression) != nil
+        let end = opensArray ? lines[start...].firstIndex { $0.contains("]") } ?? start : start
+        return (start..<end + 1, strings(in: lines[start...end].joined(separator: "\n")))
     }
 
-    /// The argv array on the right of `notify =`, which is also valid JSON.
-    private static func tokens(_ line: String) -> [String] {
-        guard let eq = line.firstIndex(of: "="),
-              let data = line[line.index(after: eq)...].trimmingCharacters(in: .whitespaces).data(using: .utf8),
-              let array = try? JSONSerialization.jsonObject(with: data) as? [String] else { return [] }
-        return array
+    /// Every TOML string in `text`: "basic" ones read like JSON, 'literal' ones are taken as they are.
+    private static func strings(in text: String) -> [String] {
+        let pattern = try! NSRegularExpression(pattern: #""(?:[^"\\]|\\.)*"|'[^']*'"#)
+        return pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { match in
+            let token = String(text[Range(match.range, in: text)!])
+            if token.hasPrefix("'") { return String(token.dropFirst().dropLast()) }
+            return try? JSONSerialization.jsonObject(with: Data(token.utf8), options: .fragmentsAllowed) as? String
+        }
+    }
+
+    /// An argv as a TOML array, which for plain strings is the same text as JSON.
+    private static func array(_ argv: [String]) -> String {
+        String(decoding: (try? JSONSerialization.data(withJSONObject: argv, options: [.withoutEscapingSlashes])) ?? Data("[]".utf8),
+               as: UTF8.self)
+    }
+
+    private static func isOurs(_ argv: [String]) -> Bool {
+        let command = argv.joined(separator: " ")
+        return command.contains(signature) || command.contains("hook codex")
     }
 
     static func isInstalled() -> Bool {
-        notifyLine(lines())?.contains(signature) == true || notifyLine(lines())?.contains("hook codex") == true
-    }
-
-    private static func shellQuoted(_ s: String) -> String {
-        "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        notifyEntry(lines()).map { isOurs($0.argv) } ?? false
     }
 
     /// What the user had before Lidlezz, remembered inside the script so re-running install
@@ -212,43 +226,43 @@ enum CodexWiring {
     }
 
     static func install(_ executable: String) -> Bool {
-        let existing = notifyLine(lines())
-        let ours = (existing?.contains(signature) ?? false) || (existing?.contains("hook codex") ?? false)
-        let previous = ours ? savedPrevious() : (existing.map(tokens) ?? [])
-        let keepPrevious = !previous.isEmpty
+        var rest = lines()
+        let entry = notifyEntry(rest)
+        let previous = entry.map { isOurs($0.argv) ? savedPrevious() : $0.argv } ?? []
 
         var command = "\"\(executable)\" hook codex \"$1\" >/dev/null 2>&1 || true"
-        if keepPrevious {
-            command += "\nexec " + previous.map(shellQuoted).joined(separator: " ") + " \"$@\""
+        if !previous.isEmpty {
+            command += "\nexec " + previous.map(Shell.quoted).joined(separator: " ") + " \"$@\""
         }
         let source = """
         #!/bin/sh
         # Lidlezz. Tells Lidlezz a Codex turn finished, then runs the notify command that was here before.
-        \(previousMarker)\(String(data: (try? JSONSerialization.data(withJSONObject: keepPrevious ? previous : [],
-                                            options: [.withoutEscapingSlashes])) ?? Data(), encoding: .utf8) ?? "[]")
+        \(previousMarker)\(array(previous))
         \(command)
         """
         try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard (try? source.write(to: script, atomically: true, encoding: .utf8)) != nil else { return false }
         try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
 
-        var rest = lines().filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("notify") }
+        if let entry { rest.removeSubrange(entry.range) }
         // A bare key has to sit above the first [section] in TOML.
-        rest.insert("notify = [\"\(script.path)\"]", at: 0)
-        return (try? rest.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8)) != nil
+        rest.insert("notify = \(array([script.path]))", at: 0)
+        return write(rest)
     }
 
     static func uninstall() -> Bool {
-        guard FileManager.default.fileExists(atPath: file.path) else { return true }
+        var rest = lines()
+        // Someone else's notify command is not ours to remove.
+        guard let entry = notifyEntry(rest), isOurs(entry.argv) else { return true }
         // Put back whatever notify command Lidlezz displaced.
-        let saved = ((try? String(contentsOf: script, encoding: .utf8)) ?? "")
-            .components(separatedBy: .newlines)
-            .first { $0.hasPrefix(previousMarker) }
-            .map { String($0.dropFirst(previousMarker.count)) } ?? "[]"
+        let previous = savedPrevious()
         try? FileManager.default.removeItem(at: script)
+        rest.removeSubrange(entry.range)
+        if !previous.isEmpty { rest.insert("notify = \(array(previous))", at: entry.range.lowerBound) }
+        return write(rest)
+    }
 
-        var rest = lines().filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("notify") }
-        if saved != "[]", !saved.isEmpty { rest.insert("notify = \(saved)", at: 0) }
-        return (try? rest.joined(separator: "\n").write(to: file, atomically: true, encoding: .utf8)) != nil
+    private static func write(_ lines: [String]) -> Bool {
+        (try? lines.joined(separator: "\n").write(to: file.resolvingSymlinksInPath(), atomically: true, encoding: .utf8)) != nil
     }
 }

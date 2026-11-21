@@ -14,9 +14,17 @@ public struct EmergencyRecord: Codable {
     /// Only Claude Code can be picked up again from the command line, and its id is stored
     /// namespaced ("claude:<uuid>"), so the prefix comes off before the command is shown.
     public var resumeCommand: String? {
-        guard let s = sessions.first(where: { ($0.agent ?? "claude") == "claude" }) else { return nil }
-        return "claude --resume \(s.id.split(separator: ":").last.map(String.init) ?? s.id)"
+        guard let s = claudeSession else { return nil }
+        return "claude --resume \(Shell.quoted(s.id.split(separator: ":").last.map(String.init) ?? s.id))"
     }
+
+    /// The same, from that session's own directory.
+    public var resumeInDirectoryCommand: String? {
+        guard let s = claudeSession, let resume = resumeCommand else { return nil }
+        return s.cwd.isEmpty ? resume : "cd \(Shell.quoted(s.cwd)) && \(resume)"
+    }
+
+    private var claudeSession: Session? { sessions.first { ($0.agent ?? "claude") == "claude" } }
 
     /// "47m · peak 71° · −12% battery"
     public var summary: String {
@@ -50,7 +58,7 @@ public struct EmergencyRecord: Codable {
     }
 
     private func write(to url: URL) {
-        if let data = try? JSONEncoder().encode(self) { try? data.write(to: url) }
+        if let data = try? JSONEncoder().encode(self) { try? data.write(to: url, options: .atomic) }
     }
 
     public static func loadLastRun() -> EmergencyRecord? {

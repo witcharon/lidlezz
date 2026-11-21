@@ -108,16 +108,20 @@ public enum Agents {
 // MARK: - shared JSON file helpers
 
 enum JSONFile {
-    static func read(_ url: URL) -> [String: Any] {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
-        return json
+    /// Empty when there is no file yet. Nil when the file is there but is not a JSON object:
+    /// writing our hooks over it would throw away everything the user had in it.
+    static func read(_ url: URL) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return [:] }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
+    /// Atomic, so the agent never reads half a file; through symlinks, so a dotfiles link stays a link.
     static func write(_ json: [String: Any], to url: URL) -> Bool {
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        guard let data = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
+        let target = url.resolvingSymlinksInPath()
+        try? FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        guard let data = try? JSONSerialization.data(withJSONObject: json,
+                                                     options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
         else { return false }
-        return (try? data.write(to: url)) != nil
+        return (try? data.write(to: target, options: .atomic)) != nil
     }
 }

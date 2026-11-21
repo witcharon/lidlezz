@@ -44,8 +44,8 @@ func guardLoop() {
         }
         fflush(stdout)
     }
-    signal(SIGINT) { _ in Guardian.terminal?.releaseManual(); _ = Guardian.terminal?.tick(); exit(0) }
-    signal(SIGTERM) { _ in Guardian.terminal?.releaseManual(); _ = Guardian.terminal?.tick(); exit(0) }
+    signal(SIGINT) { _ in Guardian.terminal?.shutdown(); exit(0) }
+    signal(SIGTERM) { _ in Guardian.terminal?.shutdown(); exit(0) }
     Guardian.terminal = guardian
     guardian.autoStart = Settings.autoStart
     guardian.ownsSleep = true

@@ -73,7 +73,7 @@ final class Model: ObservableObject {
 
     // MARK: guarding
 
-    var menuTitle: String { snap.soc.map { String(format: "%.0f°", $0) } ?? "–" }
+    static func menuTitle(_ snap: Snapshot) -> String { snap.soc.map { String(format: "%.0f°", $0) } ?? "–" }
     var runningFor: String { snap.startedAt.map { Guardian.duration(Date().timeIntervalSince($0)) } ?? "" }
 
     /// The panel's manual override: keep the Mac awake for a while whatever the agents report.
@@ -147,8 +147,9 @@ final class Model: ObservableObject {
     }
 
     func resumeInTerminal() {
-        guard let cmd = emergency?.resumeCommand, let cwd = emergency?.sessions.first?.cwd else { return }
-        let script = "tell application \"Terminal\"\nactivate\ndo script \"cd '\(cwd)' && \(cmd)\"\nend tell"
+        guard let cmd = emergency?.resumeInDirectoryCommand else { return }
+        let escaped = cmd.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let script = "tell application \"Terminal\"\nactivate\ndo script \"\(escaped)\"\nend tell"
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         p.arguments = ["-e", script]
@@ -197,12 +198,6 @@ final class Model: ObservableObject {
 
     func allowNotifications() { notifier.requestPermission { self.notificationsAllowed = $0 } }
 
-    func quit() {
-        queue.sync {
-            guardian.releaseManual()
-            guardian.autoStart = false
-            _ = guardian.tick()
-        }
-        NSApp.terminate(nil)
-    }
+    /// Runs on every way out (Quit, logout, an update, `brew uninstall`), not only the Quit button.
+    func shutdown() { queue.sync { guardian.shutdown() } }
 }
