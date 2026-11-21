@@ -8,7 +8,8 @@ import Foundation
 enum ClaudeWiring {
     static let events = ["SessionStart", "UserPromptSubmit", "PreToolUse", "Stop", "StopFailure",
                          "Notification", "SessionEnd"]
-    private static let signature = " hook claude"
+    private static let arguments = "hook claude"
+    private static let signature = " " + arguments
     private static var file: URL { Agents.home.appendingPathComponent(".claude/settings.json") }
 
     private static func isOurs(_ group: Any) -> Bool {
@@ -24,7 +25,7 @@ enum ClaudeWiring {
     static func install(_ executable: String) -> Bool {
         guard var json = JSONFile.read(file) else { return false }
         var hooks = (json["hooks"] as? [String: Any]) ?? [:]
-        let group: [String: Any] = ["hooks": [["type": "command", "command": "\"\(executable)\"\(signature)"]]]
+        let group: [String: Any] = ["hooks": [["type": "command", "command": Agents.hookCommand(executable, arguments)]]]
         for event in events {
             var groups = ((hooks[event] as? [Any]) ?? []).filter { !isOurs($0) }
             groups.append(group)
@@ -105,8 +106,9 @@ enum AntigravityWiring {
         guard var json = JSONFile.read(file) else { return false }
         var ours: [String: Any] = [:]
         for event in events {
-            ours[event] = [["hooks": [["type": "command",
-                                       "command": "\"\(executable)\" hook antigravity \(event)"]]]]
+            let handler = ["type": "command", "command": Agents.hookCommand(executable, "hook antigravity \(event)")]
+            // Tool events take a matcher around their handlers; the others list the handlers directly.
+            ours[event] = event == "PreToolUse" ? [["matcher": ".*", "hooks": [handler]]] : [handler]
         }
         json[group] = ours
         return JSONFile.write(json, to: file)

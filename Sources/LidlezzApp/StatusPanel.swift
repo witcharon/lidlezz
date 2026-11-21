@@ -248,7 +248,8 @@ struct BatteryFloorRow: View {
     @EnvironmentObject var model: Model
 
     var body: some View {
-        SettingSlider(label: "Allow sleep at", value: "\(model.batteryFloor)% battery", range: 5...80,
+        SettingSlider(label: "Allow sleep at", value: "\(model.batteryFloor)% battery",
+                      range: Double(Settings.batteryFloorRange.lowerBound)...Double(Settings.batteryFloorRange.upperBound),
                       binding: Binding(get: { Double(model.batteryFloor) }, set: { model.batteryFloor = Int($0) }))
     }
 }

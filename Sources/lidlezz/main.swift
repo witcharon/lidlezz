@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import LidlezzCore
 
 let usage = """
@@ -30,6 +30,11 @@ func executablePath() -> String {
 }
 
 func guardLoop() {
+    // Two owners of sleep undo each other: the app would release what this loop holds.
+    guard NSRunningApplication.runningApplications(withBundleIdentifier: HelperIdentity.appBundleID).isEmpty else {
+        print("Lidlezz is already running in the menu bar: use \"Keep awake\" in its panel, or quit it first.")
+        exit(1)
+    }
     let guardian = Guardian()
     guardian.notify = { notice in
         let stamp = ISO8601DateFormatter().string(from: Date())
@@ -116,8 +121,8 @@ case "idle":
         print("usage: lidlezz idle <3-30>")
     }
 case "battery":
-    if let p = args.dropFirst().first.flatMap(Int.init), (5...50).contains(p) {
+    if let p = args.dropFirst().first.flatMap(Int.init), Settings.batteryFloorRange.contains(p) {
         Settings.batteryFloor = p; print("mode turns off at \(p)%")
-    } else { print("usage: lidlezz battery <5-50>") }
+    } else { print("usage: lidlezz battery <\(Settings.batteryFloorRange.lowerBound)-\(Settings.batteryFloorRange.upperBound)>") }
 default: print(usage)
 }

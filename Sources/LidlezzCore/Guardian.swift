@@ -56,10 +56,8 @@ public final class Guardian {
     /// Last moment an agent reported work. Sleep is held for `idleMinutes` past it, so the Mac does
     /// not drop out from under someone who is about to send the next prompt.
     private var lastBusy: Date?
-    private var throttled = Set<Int32>()
-    /// What lid mode switched itself, so leaving it never undoes a choice the user made.
-    private var turnedOnLowPower = false
-    private var turnedOffTimeMachine = false
+    private var lidChanges = LidChanges()
+    private var recovered = false
     private var peak = 0.0
     private var batteryStart = 0
     private var warnedHot = false
@@ -89,6 +87,7 @@ public final class Guardian {
 
     @discardableResult
     public func tick() -> Snapshot {
+        if ownsSleep, !recovered { recovered = true; recoverLidMode() }
         snapshot.soc = Thermal.socCelsius()
         snapshot.battery = Power.battery()
         snapshot.lidClosed = Power.lidClosed() && !Power.externalDisplayConnected()
@@ -254,32 +253,67 @@ public final class Guardian {
         let pids = Set(snapshot.processes.map(\.pid))
         if !snapshot.lidMode {
             snapshot.lidMode = true
-            turnedOnLowPower = manageSleep && !Power.lowPowerMode()
-            turnedOffTimeMachine = manageSleep && Power.timeMachineAutoBackup()
-            if turnedOnLowPower { Power.setLowPowerMode(true) }
-            if turnedOffTimeMachine { Power.setTimeMachine(enabled: false) }
+            lidChanges.lowPower = manageSleep && !Power.lowPowerMode()
+            lidChanges.timeMachine = manageSleep && Power.timeMachineAutoBackup()
+            lidChanges.save()
+            if lidChanges.lowPower { Power.setLowPowerMode(true) }
+            if lidChanges.timeMachine { Power.setTimeMachine(enabled: false) }
             snapshot.paused = Processes.setPaused(true)
-                + (turnedOffTimeMachine ? ["Time Machine"] : []) + (turnedOnLowPower ? ["Low Power Mode on"] : [])
+                + (lidChanges.timeMachine ? ["Time Machine"] : []) + (lidChanges.lowPower ? ["Low Power Mode on"] : [])
         }
-        let fresh = pids.subtracting(throttled)
+        let fresh = pids.subtracting(lidChanges.throttled)
+        guard !fresh.isEmpty else { return }
+        lidChanges.throttled.formUnion(fresh)
+        lidChanges.save()
         Processes.setBackground(fresh, true)
-        throttled.formUnion(fresh)
     }
 
     private func leaveLidMode() {
         guard snapshot.lidMode else { return }
         snapshot.lidMode = false
         snapshot.paused = []
-        Processes.setBackground(throttled.intersection(snapshot.processes.map(\.pid)), false)
-        throttled.removeAll()
+        undoLidChanges()
+    }
+
+    /// A run that crashed or was killed in lid mode left its changes behind; take them back now.
+    private func recoverLidMode() {
+        guard let left = LidChanges.load() else { return }
+        snapshot.processes = Processes.agentTree()
+        lidChanges = left
+        undoLidChanges()
+    }
+
+    private func undoLidChanges() {
+        Processes.setBackground(lidChanges.throttled.intersection(snapshot.processes.map(\.pid)), false)
         _ = Processes.setPaused(false)
-        if turnedOnLowPower { Power.setLowPowerMode(false) }
-        if turnedOffTimeMachine { Power.setTimeMachine(enabled: true) }
-        turnedOnLowPower = false; turnedOffTimeMachine = false
+        if lidChanges.lowPower { Power.setLowPowerMode(false) }
+        if lidChanges.timeMachine { Power.setTimeMachine(enabled: true) }
+        lidChanges = LidChanges()
+        LidChanges.clear()
     }
 
     public static func duration(_ seconds: TimeInterval) -> String {
         let m = Int(seconds) / 60
         return m >= 60 ? "\(m / 60)h \(String(format: "%02d", m % 60))m" : "\(m)m"
     }
+}
+
+/// What lid mode switched itself, so leaving it never undoes a choice the user made.
+/// Kept on disk while the mode is on, so a run that dies in it can be cleaned up at the next launch.
+private struct LidChanges: Codable {
+    var lowPower = false
+    var timeMachine = false
+    var throttled = Set<Int32>()
+
+    private static let file = AppDir.url.appendingPathComponent("lid-mode.json")
+
+    func save() {
+        if let data = try? JSONEncoder().encode(self) { try? data.write(to: Self.file, options: .atomic) }
+    }
+
+    static func load() -> LidChanges? {
+        (try? Data(contentsOf: file)).flatMap { try? JSONDecoder().decode(LidChanges.self, from: $0) }
+    }
+
+    static func clear() { try? FileManager.default.removeItem(at: file) }
 }

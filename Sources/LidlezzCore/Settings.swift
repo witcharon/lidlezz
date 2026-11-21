@@ -6,8 +6,10 @@ public enum Settings {
     private static let defaults = UserDefaults(suiteName: HelperIdentity.appBundleID + ".settings")!
 
     /// Lid-closed mode turns itself off when the battery reaches this percentage.
+    public static let batteryFloorRange = 5...50
+
     public static var batteryFloor: Int {
-        get { defaults.object(forKey: "batteryFloor") as? Int ?? 15 }
+        get { min(defaults.object(forKey: "batteryFloor") as? Int ?? 15, batteryFloorRange.upperBound) }
         set { defaults.set(newValue, forKey: "batteryFloor") }
     }
 

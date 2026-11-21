@@ -63,6 +63,12 @@ public enum Agents {
     /// Names of agents that exit when their work is done, so their absence means nothing is running.
     public static var shortLivedNames: Set<String> { Set(all.filter { !$0.longLived }.flatMap(\.processNames)) }
 
+    /// A hook command for agents that run it through a shell. Once Lidlezz is removed it does
+    /// nothing, instead of failing on every event the agent reports.
+    static func hookCommand(_ executable: String, _ arguments: String) -> String {
+        "[ -x \"\(executable)\" ] && \"\(executable)\" \(arguments) || true"
+    }
+
     static func expand(_ path: String) -> String {
         path.hasPrefix("~") ? home.path + String(path.dropFirst(1)) : path
     }
