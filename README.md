@@ -52,6 +52,7 @@ Lidlezz needs two things from each tool: which processes to throttle when the li
 | Cursor | Full. sessionStart, beforeSubmitPrompt, preToolUse, stop, sessionEnd | `~/.cursor/hooks.json` |
 | Antigravity | Full. PreToolUse, Stop | `~/.gemini/config/hooks.json` |
 | opencode | Full. tool.execute.before, session.idle | `~/.config/opencode/plugin(s)/lidlezz.js` |
+| Hermes Agent | Full. pre_llm_call, pre_tool_call, on_session_end | `hooks:` in `~/.hermes/config.yaml` |
 | Codex CLI | Partial. Only reports that a turn finished | `notify` in `~/.codex/config.toml` |
 | Claude for Mac (Cowork) | None. Use the manual switch | — |
 

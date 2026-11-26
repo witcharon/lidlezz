@@ -169,6 +169,73 @@ enum OpencodeWiring {
     }
 }
 
+// MARK: - Hermes Agent — a hooks: block in ~/.hermes/config.yaml
+
+/// Hermes takes shell hooks from its YAML config and only runs the ones listed in its allowlist.
+/// The desktop app and the gateway never ask, so connecting Lidlezz writes both.
+enum HermesWiring {
+    /// A turn starts at pre_llm_call and on_session_end closes every turn, finished or interrupted.
+    static let events = ["pre_llm_call", "pre_tool_call", "on_session_end"]
+    private static let signature = " hook hermes"
+    private static let begin = "# >>> lidlezz"
+    private static let end = "# <<< lidlezz"
+    private static var file: URL { Agents.home.appendingPathComponent(".hermes/config.yaml") }
+    private static var allowlist: URL { Agents.home.appendingPathComponent(".hermes/shell-hooks-allowlist.json") }
+
+    private static func lines() -> [String] {
+        ((try? String(contentsOf: file, encoding: .utf8)) ?? "").components(separatedBy: "\n")
+    }
+
+    /// The lines between our markers, markers included.
+    private static func block(_ lines: [String]) -> ClosedRange<Int>? {
+        guard let first = lines.firstIndex(of: begin),
+              let last = lines[first...].firstIndex(of: end) else { return nil }
+        return first...last
+    }
+
+    static func isInstalled() -> Bool {
+        lines().filter { $0.contains(signature) }.count >= events.count
+    }
+
+    static func install(_ executable: String) -> Bool {
+        var rest = lines()
+        if let ours = block(rest) { rest.removeSubrange(ours) }
+        // YAML allows one hooks: key, and merging into someone else's by hand would risk their file.
+        guard !rest.contains(where: { $0.hasPrefix("hooks:") }) else { return false }
+        let command = "\"\(executable)\"\(signature)"
+        let scalar = "'" + command.replacingOccurrences(of: "'", with: "''") + "'"
+        while rest.last?.isEmpty == true { rest.removeLast() }
+        rest.append(begin)
+        rest.append("hooks:")
+        for event in events { rest += ["  \(event):", "    - command: \(scalar)", "      timeout: 10"] }
+        rest += [end, ""]
+        guard write(rest) else { return false }
+        return approve { approvals in approvals + events.map { ["event": $0, "command": command] } }
+    }
+
+    static func uninstall() -> Bool {
+        var rest = lines()
+        guard let ours = block(rest) else { return !isInstalled() }
+        rest.removeSubrange(ours)
+        guard write(rest) else { return false }
+        return !FileManager.default.fileExists(atPath: allowlist.path) || approve { $0 }
+    }
+
+    /// Rewrites the allowlist without our entries, then with whatever `change` adds.
+    private static func approve(_ change: ([Any]) -> [Any]) -> Bool {
+        guard var json = JSONFile.read(allowlist) else { return false }
+        let others = ((json["approvals"] as? [Any]) ?? []).filter {
+            (($0 as? [String: Any])?["command"] as? String)?.contains(signature) != true
+        }
+        json["approvals"] = change(others)
+        return JSONFile.write(json, to: allowlist)
+    }
+
+    private static func write(_ lines: [String]) -> Bool {
+        (try? lines.joined(separator: "\n").write(to: file.resolvingSymlinksInPath(), atomically: true, encoding: .utf8)) != nil
+    }
+}
+
 // MARK: - Codex — the notify key in ~/.codex/config.toml
 
 /// Codex allows exactly one notify command. If the user already has one, Lidlezz does not take it

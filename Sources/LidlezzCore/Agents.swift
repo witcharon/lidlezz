@@ -22,7 +22,7 @@ public struct Agent: Identifiable, Hashable {
     public var startsUnknown: Bool { wiring == .codexNotify }
 
     enum Wiring: Equatable {
-        case claudeSettings, cursorHooks, antigravityHooks, opencodePlugin, codexNotify, none
+        case claudeSettings, cursorHooks, antigravityHooks, opencodePlugin, codexNotify, hermesHooks, none
     }
 }
 
@@ -45,6 +45,9 @@ public enum Agents {
         Agent(id: "antigravity", name: "Antigravity", processNames: ["Antigravity", "Antigravity Helper",
                                                                      "Antigravity Helper (Renderer)", "antigravity"],
               longLived: true, wiring: .antigravityHooks, marker: ["~/.gemini", "/Applications/Antigravity.app"]),
+        Agent(id: "hermes", name: "Hermes Agent", processNames: ["Hermes", "Hermes Helper",
+                                                                  "Hermes Helper (Renderer)", "hermes"],
+              longLived: true, wiring: .hermesHooks, marker: ["~/.hermes"]),
         Agent(id: "claude-app", name: "Claude for Mac", processNames: ["Claude", "Claude Helper",
                                                                        "Claude Helper (Renderer)"],
               longLived: true, wiring: .none, marker: ["/Applications/Claude.app"]),
@@ -82,6 +85,7 @@ public enum Agents {
         case .antigravityHooks: return AntigravityWiring.isInstalled()
         case .opencodePlugin: return OpencodeWiring.isInstalled()
         case .codexNotify: return CodexWiring.isInstalled()
+        case .hermesHooks: return HermesWiring.isInstalled()
         case .none: return false
         }
     }
@@ -94,6 +98,7 @@ public enum Agents {
         case .antigravityHooks: return AntigravityWiring.install(executable)
         case .opencodePlugin: return OpencodeWiring.install(executable)
         case .codexNotify: return CodexWiring.install(executable)
+        case .hermesHooks: return HermesWiring.install(executable)
         case .none: return false
         }
     }
@@ -106,6 +111,7 @@ public enum Agents {
         case .antigravityHooks: return AntigravityWiring.uninstall()
         case .opencodePlugin: return OpencodeWiring.uninstall()
         case .codexNotify: return CodexWiring.uninstall()
+        case .hermesHooks: return HermesWiring.uninstall()
         case .none: return true
         }
     }

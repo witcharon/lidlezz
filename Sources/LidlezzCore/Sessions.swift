@@ -45,6 +45,7 @@ public enum Sessions {
         case "antigravity": applyAntigravity(event: event, json)
         case "opencode": applyOpencode(event: event, json)
         case "codex": applyCodex(json)
+        case "hermes": applyHermes(json)
         default: break
         }
     }
@@ -116,6 +117,24 @@ public enum Sessions {
             switch event {
             case "tool.execute.before": s.toolCalls += 1; s.working = true
             case "session.idle": s.working = false
+            default: break
+            }
+        }
+    }
+
+    private static func applyHermes(_ json: [String: Any]) {
+        guard let event = json["hook_event_name"] as? String else { return }
+        let raw = (json["session_id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "session"
+        // Hermes runs every session from one gateway process, so its directory names no project.
+        update("hermes:" + raw, agent: "hermes", cwd: nil) { s in
+            switch event {
+            case "pre_llm_call":
+                let message = (json["extra"] as? [String: Any])?["user_message"] as? String
+                s.prompt = String((message ?? "").prefix(80))
+                s.toolCalls = 0
+                s.working = true
+            case "pre_tool_call": s.toolCalls += 1; s.working = true
+            case "on_session_end": s.working = false
             default: break
             }
         }
